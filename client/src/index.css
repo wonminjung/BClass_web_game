@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dungeon-bg text-gray-100 font-game min-h-screen;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-dungeon-bg;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-dungeon-border rounded-full;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-2 bg-dungeon-accent hover:bg-purple-600 rounded-lg
+           font-bold transition-all duration-200 active:scale-95
+           disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-2 border border-dungeon-border hover:border-dungeon-accent
+           rounded-lg font-bold transition-all duration-200 active:scale-95;
+  }
+
+  .panel {
+    @apply bg-dungeon-panel border border-dungeon-border rounded-xl p-4;
+  }
+
+  .stat-bar {
+    @apply h-3 rounded-full overflow-hidden bg-gray-800;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
