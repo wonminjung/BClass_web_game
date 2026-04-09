@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="40%" stop-color="#d4a017"/>
+      <stop offset="100%" stop-color="#a37a10"/>
+    </linearGradient>
+    <linearGradient id="goldDark" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#b8860b"/>
+      <stop offset="100%" stop-color="#8b6508"/>
+    </linearGradient>
+  </defs>
+  <!-- Shadow -->
+  <ellipse cx="32" cy="58" rx="12" ry="3" fill="#000" opacity="0.25"/>
+  <!-- Shield shape -->
+  <path d="M32 6 L52 14 L52 30 C52 44, 42 54, 32 58 C22 54, 12 44, 12 30 L12 14Z" fill="url(#gold)" stroke="#8b6508" stroke-width="1.5"/>
+  <!-- Shield inner border -->
+  <path d="M32 10 L48 17 L48 30 C48 42, 40 50, 32 54 C24 50, 16 42, 16 30 L16 17Z" fill="none" stroke="#a37a10" stroke-width="1.5"/>
+  <!-- Shield face - slightly darker inner -->
+  <path d="M32 12 L46 18 L46 30 C46 40, 39 48, 32 52 C25 48, 18 40, 18 30 L18 18Z" fill="url(#goldDark)" opacity="0.3"/>
+  <!-- Cross symbol -->
+  <rect x="29" y="16" width="6" height="30" rx="1" fill="#fbbf24" stroke="#8b6508" stroke-width="0.8"/>
+  <rect x="20" y="26" width="24" height="6" rx="1" fill="#fbbf24" stroke="#8b6508" stroke-width="0.8"/>
+  <!-- Sword overlay on cross (vertical) -->
+  <line x1="32" y1="14" x2="32" y2="48" stroke="#d4a017" stroke-width="1" opacity="0.5"/>
+  <!-- Worn/scratch marks -->
+  <line x1="22" y1="20" x2="26" y2="22" stroke="#6b5010" stroke-width="0.6" opacity="0.4"/>
+  <line x1="40" y1="36" x2="44" y2="38" stroke="#6b5010" stroke-width="0.5" opacity="0.35"/>
+  <line x1="24" y1="40" x2="27" y2="42" stroke="#6b5010" stroke-width="0.5" opacity="0.3"/>
+  <!-- Highlight -->
+  <path d="M18 18 L32 12 L34 12 L20 18Z" fill="white" opacity="0.2"/>
+  <!-- Small rivets -->
+  <circle cx="32" cy="14" r="1.5" fill="#fbbf24" stroke="#8b6508" stroke-width="0.5"/>
+  <circle cx="18" cy="24" r="1" fill="#fbbf24" stroke="#8b6508" stroke-width="0.5"/>
+  <circle cx="46" cy="24" r="1" fill="#fbbf24" stroke="#8b6508" stroke-width="0.5"/>
+  <circle cx="32" cy="50" r="1" fill="#fbbf24" stroke="#8b6508" stroke-width="0.5"/>
+</svg>

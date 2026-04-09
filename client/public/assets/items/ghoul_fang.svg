@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="fang" x1="0.3" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#f5e6a3"/>
+      <stop offset="40%" stop-color="#d4c472"/>
+      <stop offset="100%" stop-color="#a89045"/>
+    </linearGradient>
+    <linearGradient id="slime" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#4ade80" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#16a34a" stop-opacity="0.6"/>
+    </linearGradient>
+  </defs>
+  <!-- Shadow -->
+  <ellipse cx="32" cy="58" rx="10" ry="3" fill="#000" opacity="0.3"/>
+  <!-- Fang tooth - curved sharp shape -->
+  <path d="M22 8 C22 8, 26 6, 30 8 C34 10, 36 14, 37 20 C38 28, 36 38, 33 50 C32 54, 31 56, 30 54 C28 48, 26 38, 25 28 C24 20, 22 12, 22 8Z" fill="url(#fang)" stroke="#8b7530" stroke-width="1"/>
+  <!-- Tooth ridge lines -->
+  <path d="M26 12 C27 18, 28 28, 30 42" stroke="#c4a84a" stroke-width="0.8" opacity="0.5" fill="none"/>
+  <path d="M24 14 C25 22, 26 32, 28 46" stroke="#a89045" stroke-width="0.6" opacity="0.4" fill="none"/>
+  <!-- Root at top -->
+  <path d="M22 8 C22 6, 24 4, 28 4 C30 4, 32 5, 30 8" fill="#a89045" stroke="#8b7530" stroke-width="0.8"/>
+  <!-- Green slime drips -->
+  <path d="M33 48 C34 50, 35 54, 34 58 C34 60, 33 60, 33 58 C33 56, 33 52, 33 48Z" fill="url(#slime)"/>
+  <path d="M30 52 C30 54, 31 57, 30 60 C30 62, 29 62, 29 60 C29 57, 29 54, 30 52Z" fill="url(#slime)"/>
+  <path d="M36 36 C37 38, 38 42, 37 44 C37 45, 36 45, 36 43 C36 41, 36 38, 36 36Z" fill="url(#slime)"/>
+  <!-- Slime glow -->
+  <circle cx="34" cy="56" r="3" fill="#4ade80" opacity="0.15"/>
+  <circle cx="30" cy="58" r="2" fill="#4ade80" opacity="0.1"/>
+</svg>

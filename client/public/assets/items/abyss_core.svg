@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <radialGradient id="core" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="40%" stop-color="#0f0a2e"/>
+      <stop offset="100%" stop-color="#020010"/>
+    </radialGradient>
+    <radialGradient id="innerGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="abyssGlow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Outer dark aura -->
+  <circle cx="32" cy="32" r="28" fill="#7c3aed" opacity="0.06" filter="url(#abyssGlow)"/>
+  <!-- Shadow -->
+  <ellipse cx="32" cy="58" rx="12" ry="3" fill="#7c3aed" opacity="0.2"/>
+  <!-- Main orb -->
+  <circle cx="32" cy="32" r="18" fill="url(#core)" stroke="#2e1065" stroke-width="1.5"/>
+  <!-- Inner glow -->
+  <circle cx="32" cy="32" r="14" fill="url(#innerGlow)"/>
+  <!-- Cracks of light -->
+  <g filter="url(#softGlow)" opacity="0.8">
+    <path d="M32 14 L34 22 L32 20 L30 22Z" fill="#a78bfa"/>
+    <path d="M32 50 L30 42 L32 44 L34 42Z" fill="#a78bfa"/>
+    <path d="M14 32 L22 30 L20 32 L22 34Z" fill="#a78bfa"/>
+    <path d="M50 32 L42 34 L44 32 L42 30Z" fill="#a78bfa"/>
+    <!-- Diagonal cracks -->
+    <path d="M20 20 L26 24 L24 24Z" fill="#8b5cf6" opacity="0.7"/>
+    <path d="M44 20 L38 24 L40 24Z" fill="#8b5cf6" opacity="0.7"/>
+    <path d="M20 44 L26 40 L24 40Z" fill="#8b5cf6" opacity="0.6"/>
+    <path d="M44 44 L38 40 L40 40Z" fill="#8b5cf6" opacity="0.6"/>
+  </g>
+  <!-- Surface crack lines -->
+  <path d="M26 18 C28 22, 24 28, 22 32" stroke="#6d28d9" stroke-width="0.8" fill="none" opacity="0.6"/>
+  <path d="M38 18 C36 24, 40 28, 42 30" stroke="#6d28d9" stroke-width="0.7" fill="none" opacity="0.5"/>
+  <path d="M24 38 C28 40, 30 44, 28 48" stroke="#6d28d9" stroke-width="0.7" fill="none" opacity="0.5"/>
+  <path d="M40 36 C38 40, 36 44, 38 48" stroke="#6d28d9" stroke-width="0.6" fill="none" opacity="0.4"/>
+  <!-- Central dark eye -->
+  <circle cx="32" cy="32" r="4" fill="#020010"/>
+  <circle cx="32" cy="32" r="2" fill="#7c3aed" opacity="0.5" filter="url(#softGlow)"/>
+  <!-- Highlight -->
+  <ellipse cx="26" cy="24" rx="3" ry="2" fill="white" opacity="0.08" transform="rotate(-30 26 24)"/>
+</svg>

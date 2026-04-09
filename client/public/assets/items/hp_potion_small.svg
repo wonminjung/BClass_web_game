@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Cork / stopper -->
+  <rect x="24" y="8" width="16" height="8" rx="2" fill="#8B6914" stroke="#5C4A0E" stroke-width="1.5"/>
+  <rect x="26" y="6" width="12" height="4" rx="1" fill="#A07828" stroke="#5C4A0E" stroke-width="1"/>
+  <!-- Cork highlight -->
+  <rect x="28" y="7" width="3" height="2" rx="0.5" fill="#C49A3C" opacity="0.6"/>
+
+  <!-- Bottle neck -->
+  <path d="M27 16 L27 22 Q27 24 25 26 L22 30 Q20 32 20 35 L20 50 Q20 56 26 56 L38 56 Q44 56 44 50 L44 35 Q44 32 42 30 L39 26 Q37 24 37 22 L37 16 Z"
+        fill="#3D1A1A" stroke="#2A0E0E" stroke-width="1.5"/>
+
+  <!-- Glass bottle body (darker tint) -->
+  <path d="M27 16 L27 22 Q27 24 25 26 L22 30 Q20 32 20 35 L20 50 Q20 56 26 56 L38 56 Q44 56 44 50 L44 35 Q44 32 42 30 L39 26 Q37 24 37 22 L37 16 Z"
+        fill="rgba(80,20,20,0.3)" stroke="none"/>
+
+  <!-- Red liquid fill -->
+  <path d="M21 34 L21 50 Q21 55 26.5 55 L37.5 55 Q43 55 43 50 L43 34 Q43 32 41.5 30.5 L39 28 Q38 27 37.5 25 L26.5 25 Q26 27 25 28 L22.5 30.5 Q21 32 21 34 Z"
+        fill="#B01020" opacity="0.9"/>
+
+  <!-- Liquid darker layer -->
+  <path d="M22 42 L22 50 Q22 54 27 54 L37 54 Q42 54 42 50 L42 42 Z"
+        fill="#8B0A18" opacity="0.5"/>
+
+  <!-- Liquid highlight / shine -->
+  <ellipse cx="29" cy="38" rx="4" ry="6" fill="#E03040" opacity="0.4"/>
+
+  <!-- Glass shine left edge -->
+  <path d="M23 32 L23 48 Q23 50 24 50" stroke="rgba(255,200,200,0.3)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Glass shine top -->
+  <path d="M28 17 L28 21" stroke="rgba(255,220,220,0.25)" stroke-width="1" fill="none" stroke-linecap="round"/>
+
+  <!-- Small sparkle -->
+  <circle cx="26" cy="35" r="1" fill="white" opacity="0.4"/>
+</svg>

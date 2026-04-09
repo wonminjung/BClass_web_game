@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="flask" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4a4a52"/>
+      <stop offset="100%" stop-color="#2a2a32"/>
+    </linearGradient>
+    <linearGradient id="blood" x1="0.3" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#dc2626"/>
+      <stop offset="50%" stop-color="#991b1b"/>
+      <stop offset="100%" stop-color="#450a0a"/>
+    </linearGradient>
+    <filter id="demonGlow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Demonic aura -->
+  <ellipse cx="32" cy="36" rx="16" ry="18" fill="#dc2626" opacity="0.08" filter="url(#demonGlow)"/>
+  <!-- Shadow -->
+  <ellipse cx="32" cy="58" rx="10" ry="3" fill="#000" opacity="0.3"/>
+  <!-- Flask body -->
+  <path d="M22 28 C18 30, 16 36, 16 40 C16 48, 22 54, 32 54 C42 54, 48 48, 48 40 C48 36, 46 30, 42 28Z" fill="url(#flask)" stroke="#18181b" stroke-width="1.5"/>
+  <!-- Blood liquid inside -->
+  <path d="M23 30 C20 32, 18 36, 18 40 C18 46, 23 52, 32 52 C41 52, 46 46, 46 40 C46 36, 44 32, 41 30Z" fill="url(#blood)"/>
+  <!-- Swirling blood pattern -->
+  <path d="M24 38 C28 34, 32 40, 36 36 C40 32, 38 42, 34 44" stroke="#ef4444" stroke-width="1.2" fill="none" opacity="0.6"/>
+  <path d="M28 44 C32 40, 36 46, 40 42" stroke="#7f1d1d" stroke-width="1" fill="none" opacity="0.5"/>
+  <!-- Flask neck -->
+  <rect x="28" y="16" width="8" height="12" rx="1" fill="url(#flask)" stroke="#18181b" stroke-width="1.2"/>
+  <!-- Cork/stopper -->
+  <rect x="27" y="12" width="10" height="5" rx="2" fill="#78716c" stroke="#44403c" stroke-width="1"/>
+  <!-- Glass highlight -->
+  <path d="M22 32 C20 36, 20 40, 22 46" stroke="white" stroke-width="1.2" opacity="0.15" fill="none" stroke-linecap="round"/>
+  <!-- Demonic wisps -->
+  <g filter="url(#demonGlow)" opacity="0.6">
+    <path d="M14 36 C12 32, 10 28, 12 24" stroke="#dc2626" stroke-width="1" fill="none"/>
+    <path d="M50 34 C52 30, 54 28, 52 24" stroke="#dc2626" stroke-width="1" fill="none"/>
+    <path d="M18 48 C14 46, 12 42, 14 40" stroke="#991b1b" stroke-width="0.8" fill="none"/>
+  </g>
+  <!-- Bubbles -->
+  <circle cx="28" cy="42" r="1.5" fill="#ef4444" opacity="0.4"/>
+  <circle cx="36" cy="38" r="1" fill="#dc2626" opacity="0.35"/>
+  <circle cx="32" cy="48" r="1.2" fill="#ef4444" opacity="0.3"/>
+</svg>

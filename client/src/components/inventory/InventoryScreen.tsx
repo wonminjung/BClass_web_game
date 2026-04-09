@@ -56,14 +56,22 @@ const ItemSlot = React.memo(function ItemSlot({
       onClick={handleClick}
       className={`relative border-2 ${rarityColors[item.data.rarity]} p-2`}
     >
-      {/* Icon placeholder */}
-      <div className="w-full aspect-square bg-dungeon-bg rounded-lg mb-1 flex items-center justify-center">
-        <span className={`text-2xl ${rarityTextColors[item.data.rarity]}`}>
-          {item.data.type === 'weapon' ? '&#9876;' :
-           item.data.type === 'armor' ? '&#128737;' :
-           item.data.type === 'accessory' ? '&#128142;' :
-           item.data.type === 'consumable' ? '&#127863;' : '&#9830;'}
-        </span>
+      {/* Item icon */}
+      <div className="w-full aspect-square bg-dungeon-bg rounded-lg mb-1 flex items-center justify-center p-1">
+        <img
+          src={item.data.iconUrl}
+          alt={item.data.name}
+          className="w-full h-full object-contain"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+            (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-2xl ${rarityTextColors[item.data.rarity]}">${
+              item.data.type === 'weapon' ? '⚔' :
+              item.data.type === 'armor' ? '🛡' :
+              item.data.type === 'accessory' ? '💍' :
+              item.data.type === 'consumable' ? '🧪' : '◆'
+            }</span>`;
+          }}
+        />
       </div>
       <p className={`text-xs font-bold text-center truncate ${rarityTextColors[item.data.rarity]}`}>
         {item.data.name}
