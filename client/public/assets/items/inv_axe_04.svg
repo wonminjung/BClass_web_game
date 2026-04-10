@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs><radialGradient id="epicGlow"><stop offset="0%" stop-color="#9B59B6" stop-opacity="0.6"/><stop offset="100%" stop-color="#9B59B6" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="32" cy="32" r="28" fill="url(#epicGlow)" opacity="0.3"/>
+  
+  <rect x="30" y="8" width="4" height="44" rx="1" fill="#6B4226" stroke="#4A2E1A" stroke-width="0.8"/>
+  <line x1="30" y1="18" x2="34" y2="17" stroke="#4A2E1A" stroke-width="0.8"/>
+  <line x1="30" y1="22" x2="34" y2="21" stroke="#4A2E1A" stroke-width="0.8"/>
+  <path d="M34,10 Q50,16 48,28 Q46,34 34,30 Z" fill="#9B59B6" stroke="#6C3483" stroke-width="1"/>
+  <path d="M34,12 Q46,16 45,26 Q44,30 34,28 Z" fill="#C39BD3" opacity="0.3"/>
+  <line x1="38" y1="14" x2="40" y2="26" stroke="#C39BD3" stroke-width="0.8" opacity="0.4"/>
+  
+</svg>

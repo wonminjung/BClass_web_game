@@ -10,7 +10,7 @@ import type {
   SkillState,
   SaveData,
 } from '../../../shared/types';
-import { CHARACTERS, SKILLS, MONSTERS, DUNGEONS } from '../../../shared/data';
+import { CHARACTERS, SKILLS, MONSTERS, DUNGEONS, ITEMS } from '../../../shared/data';
 
 // ────────────────────────────────────────────────────────────
 // Battle state store (keyed by battle id)
@@ -18,6 +18,8 @@ import { CHARACTERS, SKILLS, MONSTERS, DUNGEONS } from '../../../shared/data';
 const battleStore = new Map<string, BattleState>();
 const skillStateStore = new Map<string, SkillState[]>();
 const battleDungeonMap = new Map<string, string>();
+const battleCritMap = new Map<string, { critRate: number; critDamage: number }>();
+const battleWaveMap = new Map<string, { current: number; total: number; dungeonId: string; saveData: SaveData }>();
 
 export function getBattle(id: string): BattleState | undefined {
   return battleStore.get(id);
@@ -50,18 +52,34 @@ export function initBattle(
   const character = CHARACTERS.find((c) => c.id === saveData.characterId);
   if (!character) return { error: 'Character data not found' };
 
-  // Build player fighter from base stats + level scaling
+  // Build player fighter from base stats + level scaling + equipment
   const levelBonus = saveData.level - 1;
+  let equipHp = 0, equipMp = 0, equipAtk = 0, equipDef = 0, equipSpd = 0;
+
+  // Sum up equipped item stats with enhancement multiplier
+  for (const slotItemId of Object.values(saveData.equippedItems)) {
+    if (!slotItemId) continue;
+    const itemDef = ITEMS.find((i) => i.id === slotItemId);
+    if (!itemDef?.stats) continue;
+    const enh = saveData.enhanceLevels?.[slotItemId];
+    const mult = 1 + (enh?.level ?? 0);
+    equipHp += (itemDef.stats.hp ?? 0) * mult;
+    equipMp += (itemDef.stats.mp ?? 0) * mult;
+    equipAtk += (itemDef.stats.attack ?? 0) * mult;
+    equipDef += (itemDef.stats.defense ?? 0) * mult;
+    equipSpd += (itemDef.stats.speed ?? 0) * mult;
+  }
+
   const player: BattleFighter = {
     id: 'player',
     name: saveData.playerName,
-    currentHp: character.baseStats.maxHp + levelBonus * 15,
-    maxHp: character.baseStats.maxHp + levelBonus * 15,
-    currentMp: character.baseStats.maxMp + levelBonus * 5,
-    maxMp: character.baseStats.maxMp + levelBonus * 5,
-    attack: character.baseStats.attack + levelBonus * 3,
-    defense: character.baseStats.defense + levelBonus * 2,
-    speed: character.baseStats.speed + levelBonus * 1,
+    currentHp: character.baseStats.maxHp + levelBonus * 15 + equipHp,
+    maxHp: character.baseStats.maxHp + levelBonus * 15 + equipHp,
+    currentMp: character.baseStats.maxMp + levelBonus * 5 + equipMp,
+    maxMp: character.baseStats.maxMp + levelBonus * 5 + equipMp,
+    attack: character.baseStats.attack + levelBonus * 3 + equipAtk,
+    defense: character.baseStats.defense + levelBonus * 2 + equipDef,
+    speed: character.baseStats.speed + levelBonus * 1 + equipSpd,
     statusEffects: [],
     isAlive: true,
   };
@@ -104,18 +122,40 @@ export function initBattle(
   };
 
   // Initialize skill states (all cooldowns at 0)
-  const characterSkills = SKILLS.filter((s) => s.characterId === saveData.characterId);
+  const characterSkills = SKILLS.filter((s) => s.characterId === saveData.characterId || s.characterId === 'common');
   const skillStates: SkillState[] = characterSkills.map((s) => ({
     skillId: s.id,
     currentCooldown: 0,
     isAvailable: s.type === 'active',
   }));
 
+  // Calculate crit stats including equipment bonuses
+  let equipCritRate = 0, equipCritDmg = 0;
+  for (const slotItemId of Object.values(saveData.equippedItems)) {
+    if (!slotItemId) continue;
+    const itemDef = ITEMS.find((i) => i.id === slotItemId);
+    if (!itemDef?.stats) continue;
+    const enh = saveData.enhanceLevels?.[slotItemId];
+    const mult = 1 + (enh?.level ?? 0);
+    equipCritRate += (itemDef.stats.critRate ?? 0) * mult;
+    equipCritDmg += (itemDef.stats.critDamage ?? 0) * mult;
+  }
+
   battleStore.set(battleState.id, battleState);
   skillStateStore.set(battleState.id, skillStates);
   battleDungeonMap.set(battleState.id, dungeonId);
+  battleCritMap.set(battleState.id, {
+    critRate: character.baseStats.critRate + equipCritRate,
+    critDamage: character.baseStats.critDamage + equipCritDmg,
+  });
+  battleWaveMap.set(battleState.id, {
+    current: waveIndex,
+    total: dungeon.waves.length,
+    dungeonId,
+    saveData: { ...saveData },
+  });
 
-  return { battleState, skillStates };
+  return { battleState, skillStates, waveIndex, totalWaves: dungeon.waves.length };
 }
 
 // ────────────────────────────────────────────────────────────
@@ -233,10 +273,10 @@ export function executePlayerAction(
     skillState.currentCooldown = skill.cooldown;
   }
 
-  // Resolve character for crit stats
-  const character = CHARACTERS.find((c) => c.id === skill.characterId);
-  const baseCritRate = character?.baseStats.critRate ?? 0.1;
-  const baseCritDmg = character?.baseStats.critDamage ?? 1.5;
+  // Resolve crit stats (base + equipment, stored at battle init)
+  const critStats = battleCritMap.get(battleState.id);
+  const baseCritRate = critStats?.critRate ?? 0.1;
+  const baseCritDmg = critStats?.critDamage ?? 1.5;
 
   // Determine targets
   let targets: BattleFighter[] = [];
@@ -460,17 +500,202 @@ export function executeEnemyTurn(battleState: BattleState): BattleResult[] {
 // checkBattleEnd
 // ────────────────────────────────────────────────────────────
 
+// ────────────────────────────────────────────────────────────
+// useItemInBattle — 전투 중 소비 아이템 사용 (턴 소모)
+// ────────────────────────────────────────────────────────────
+
+export function useItemInBattle(
+  battleState: BattleState,
+  itemId: string,
+  saveData: SaveData,
+): { results: BattleResult[]; error?: never } | { error: string } {
+  const player = battleState.player;
+  if (!player.isAlive) return { error: '이미 쓰러진 상태입니다' };
+  if (battleState.status !== 'player_turn') return { error: '당신의 턴이 아닙니다' };
+
+  const itemDef = ITEMS.find((i) => i.id === itemId);
+  if (!itemDef) return { error: '아이템을 찾을 수 없습니다' };
+  if (itemDef.type !== 'consumable') return { error: '소비 아이템만 사용할 수 있습니다' };
+  if (!itemDef.useEffect) return { error: '사용 효과가 없는 아이템입니다' };
+
+  // Check inventory
+  const slot = saveData.inventory.find((s) => s.itemId === itemId);
+  if (!slot || slot.quantity <= 0) return { error: '아이템이 부족합니다' };
+
+  // Consume item
+  slot.quantity -= 1;
+  if (slot.quantity <= 0) {
+    const idx = saveData.inventory.indexOf(slot);
+    if (idx >= 0) saveData.inventory.splice(idx, 1);
+  }
+
+  // Apply effect
+  const { type, value } = itemDef.useEffect;
+  let heal = 0;
+
+  if (type === 'heal_hp') {
+    const before = player.currentHp;
+    player.currentHp = Math.min(player.maxHp, player.currentHp + value);
+    heal = player.currentHp - before;
+  } else if (type === 'heal_mp') {
+    const before = player.currentMp;
+    player.currentMp = Math.min(player.maxMp, player.currentMp + value);
+    heal = player.currentMp - before;
+  }
+
+  // Log
+  const logEntry: BattleLogEntry = {
+    turn: battleState.turn,
+    message: `${player.name}이(가) ${itemDef.name}을(를) 사용했다! (${type === 'heal_hp' ? 'HP' : 'MP'} +${heal})`,
+    type: 'heal',
+  };
+  battleState.log.push(logEntry);
+
+  // Advance turn
+  battleState.status = 'enemy_turn';
+
+  return {
+    results: [{
+      actionType: 'heal' as BattleAction,
+      actorId: player.id,
+      targetId: player.id,
+      damage: 0,
+      heal,
+      isCritical: false,
+      statusApplied: null,
+      targetDefeated: false,
+    }],
+  };
+}
+
 export function checkBattleEnd(battleState: BattleState): 'victory' | 'defeat' | null {
   if (!battleState.player.isAlive) return 'defeat';
   if (battleState.enemies.every((e) => !e.isAlive)) return 'victory';
   return null;
 }
 
+/** Check if current wave is the last one */
+export function isLastWave(battleId: string): boolean {
+  const wave = battleWaveMap.get(battleId);
+  if (!wave) return true;
+  return wave.current >= wave.total - 1;
+}
+
+/** Get wave info */
+export function getWaveInfo(battleId: string): { current: number; total: number } | null {
+  const wave = battleWaveMap.get(battleId);
+  if (!wave) return null;
+  return { current: wave.current, total: wave.total };
+}
+
+/** Advance to next wave — spawn new enemies, keep player HP/MP/status */
+export function advanceWave(battleId: string): boolean {
+  const battleState = battleStore.get(battleId);
+  const wave = battleWaveMap.get(battleId);
+  if (!battleState || !wave) return false;
+
+  const nextWaveIndex = wave.current + 1;
+  const dungeon = DUNGEONS.find((d) => d.id === wave.dungeonId);
+  if (!dungeon || nextWaveIndex >= dungeon.waves.length) return false;
+
+  const waveData = dungeon.waves[nextWaveIndex];
+  const enemies: BattleFighter[] = [];
+  let idx = 0;
+
+  for (const entry of waveData.monsters) {
+    const monsterData = MONSTERS.find((m) => m.id === entry.monsterId);
+    if (!monsterData) continue;
+
+    for (let i = 0; i < entry.count; i++) {
+      enemies.push({
+        id: `enemy_${idx}`,
+        name: `${monsterData.name}${entry.count > 1 ? ` ${String.fromCharCode(65 + i)}` : ''}`,
+        currentHp: monsterData.stats.maxHp,
+        maxHp: monsterData.stats.maxHp,
+        currentMp: 0,
+        maxMp: 0,
+        attack: monsterData.stats.attack,
+        defense: monsterData.stats.defense,
+        speed: monsterData.stats.speed,
+        statusEffects: [],
+        isAlive: true,
+      });
+      idx++;
+    }
+  }
+
+  battleState.enemies = enemies;
+  battleState.status = 'player_turn';
+  battleState.turn += 1;
+  battleState.log.push({
+    turn: battleState.turn,
+    message: `--- 웨이브 ${nextWaveIndex + 1}/${dungeon.waves.length} ---`,
+    type: 'system',
+  });
+
+  wave.current = nextWaveIndex;
+
+  return true;
+}
+
 // ────────────────────────────────────────────────────────────
 // calculateRewards
 // ────────────────────────────────────────────────────────────
 
-export function calculateRewards(battleId: string): BattleRewards | null {
+// ── Equipment drop tables ──
+
+const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'] as const;
+
+/** Dungeon → mob equipment rarity, boss equipment rarity */
+const DUNGEON_LOOT_TABLE: Record<string, { mobRarity: string; bossRarity: string }> = {
+  forsaken_crypt:    { mobRarity: 'common',    bossRarity: 'common' },
+  haunted_fortress:  { mobRarity: 'common',    bossRarity: 'common' },
+  blood_sanctum:     { mobRarity: 'common',    bossRarity: 'uncommon' },
+  abyss_gate:        { mobRarity: 'uncommon',  bossRarity: 'rare' },
+  burning_mine:      { mobRarity: 'uncommon',  bossRarity: 'rare' },
+  venom_swamp:       { mobRarity: 'uncommon',  bossRarity: 'rare' },
+  forgotten_temple:  { mobRarity: 'rare',      bossRarity: 'epic' },
+  frozen_throne:     { mobRarity: 'rare',      bossRarity: 'epic' },
+  blackrock_abyss:   { mobRarity: 'rare',      bossRarity: 'epic' },
+  twilight_bastion:  { mobRarity: 'epic',      bossRarity: 'legendary' },
+  gates_of_hell:     { mobRarity: 'epic',      bossRarity: 'legendary' },
+  icecrown_citadel:  { mobRarity: 'epic',      bossRarity: 'legendary' },
+  tomb_of_sargeras:  { mobRarity: 'legendary', bossRarity: 'legendary' },
+};
+
+/** Boss monster IDs (last-wave solo or named bosses) */
+const BOSS_IDS = new Set([
+  'abyss_lord', 'molten_overseer', 'swamp_hydra', 'fallen_high_priest',
+  'frost_lich_king', 'black_dragon', 'chogall', 'archimonde',
+  'lich_king_arthas', 'sargeras_avatar',
+]);
+
+const MOB_EQUIP_DROP_RATE = 0.08;
+const BOSS_EQUIP_DROP_RATE = 0.40;
+
+function clampRarity(index: number): number {
+  return Math.max(0, Math.min(index, RARITY_ORDER.length - 1));
+}
+
+/** Roll boss rarity: 20% current-2, 60% current-1, 20% current */
+function rollBossRarity(baseRarity: string): string {
+  const idx = RARITY_ORDER.indexOf(baseRarity as typeof RARITY_ORDER[number]);
+  const roll = Math.random();
+  if (roll < 0.20) return RARITY_ORDER[clampRarity(idx - 2)];
+  if (roll < 0.80) return RARITY_ORDER[clampRarity(idx - 1)];
+  return RARITY_ORDER[clampRarity(idx)];
+}
+
+/** Pick a random equipment from the player's class pool at given rarity */
+function rollEquipment(characterId: string, rarity: string): string | null {
+  const pool = ITEMS.filter(
+    (i) => i.requiredClass === characterId && i.rarity === rarity,
+  );
+  if (pool.length === 0) return null;
+  return pool[Math.floor(Math.random() * pool.length)].id;
+}
+
+export function calculateRewards(battleId: string, characterId: string): BattleRewards | null {
   const battleState = battleStore.get(battleId);
   const dungeonId = battleDungeonMap.get(battleId);
   if (!battleState || !dungeonId) return null;
@@ -478,9 +703,20 @@ export function calculateRewards(battleId: string): BattleRewards | null {
   const dungeon = DUNGEONS.find((d) => d.id === dungeonId);
   if (!dungeon) return null;
 
+  const lootTable = DUNGEON_LOOT_TABLE[dungeonId];
+
   let totalExp = dungeon.rewards.exp;
   let totalGold = dungeon.rewards.gold;
   const items: { itemId: string; quantity: number }[] = [];
+
+  function addDrop(itemId: string) {
+    const existing = items.find((i) => i.itemId === itemId);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      items.push({ itemId, quantity: 1 });
+    }
+  }
 
   // Add per-monster rewards
   for (const enemy of battleState.enemies) {
@@ -492,15 +728,24 @@ export function calculateRewards(battleId: string): BattleRewards | null {
       monsterData.goldReward.min + Math.random() * (monsterData.goldReward.max - monsterData.goldReward.min),
     );
 
-    // Roll drops
+    // Roll material drops
     for (const drop of monsterData.drops) {
       if (Math.random() < drop.chance) {
-        const existing = items.find((i) => i.itemId === drop.itemId);
-        if (existing) {
-          existing.quantity += 1;
-        } else {
-          items.push({ itemId: drop.itemId, quantity: 1 });
-        }
+        addDrop(drop.itemId);
+      }
+    }
+
+    // Roll equipment drop
+    if (lootTable) {
+      const isBoss = BOSS_IDS.has(monsterData.id);
+      const dropRate = isBoss ? BOSS_EQUIP_DROP_RATE : MOB_EQUIP_DROP_RATE;
+
+      if (Math.random() < dropRate) {
+        const rarity = isBoss
+          ? rollBossRarity(lootTable.bossRarity)
+          : lootTable.mobRarity;
+        const equipId = rollEquipment(characterId, rarity);
+        if (equipId) addDrop(equipId);
       }
     }
   }
@@ -515,4 +760,183 @@ export function removeBattle(id: string): void {
   battleStore.delete(id);
   skillStateStore.delete(id);
   battleDungeonMap.delete(id);
+  battleCritMap.delete(id);
+  battleWaveMap.delete(id);
+  abyssFloorMap.delete(id);
+}
+
+// ────────────────────────────────────────────────────────────
+// Abyss (무한 던전)
+// ────────────────────────────────────────────────────────────
+
+const abyssFloorMap = new Map<string, number>();
+
+/** All regular (non-boss) monster IDs */
+const REGULAR_MONSTER_IDS = MONSTERS.filter((m) => !BOSS_IDS.has(m.id)).map((m) => m.id);
+/** All boss monster IDs */
+const BOSS_MONSTER_IDS = MONSTERS.filter((m) => BOSS_IDS.has(m.id)).map((m) => m.id);
+
+/** Abyss stat multiplier: 1 + floor * 0.5 */
+function abyssMultiplier(floor: number): number {
+  return 1 + floor * 0.5;
+}
+
+/** Abyss legendary drop rate: 0.1% + floor * 0.028% */
+function abyssDropRate(floor: number): number {
+  return 0.001 + floor * 0.00028;
+}
+
+export function getAbyssFloor(battleId: string): number | undefined {
+  return abyssFloorMap.get(battleId);
+}
+
+export function initAbyssBattle(
+  saveData: SaveData,
+): { battleState: BattleState; skillStates: SkillState[]; floor: number; error?: never } | { error: string } {
+  const floor = saveData.abyssFloor ?? 0;
+  if (floor > 999) return { error: 'Maximum floor reached' };
+
+  const character = CHARACTERS.find((c) => c.id === saveData.characterId);
+  if (!character) return { error: 'Character data not found' };
+
+  // Player stats (same as initBattle)
+  const levelBonus = saveData.level - 1;
+  let equipHp = 0, equipMp = 0, equipAtk = 0, equipDef = 0, equipSpd = 0;
+  let equipCritRate = 0, equipCritDmg = 0;
+
+  for (const slotItemId of Object.values(saveData.equippedItems)) {
+    if (!slotItemId) continue;
+    const itemDef = ITEMS.find((i) => i.id === slotItemId);
+    if (!itemDef?.stats) continue;
+    const enh = saveData.enhanceLevels?.[slotItemId];
+    const mult = 1 + (enh?.level ?? 0);
+    equipHp += (itemDef.stats.hp ?? 0) * mult;
+    equipMp += (itemDef.stats.mp ?? 0) * mult;
+    equipAtk += (itemDef.stats.attack ?? 0) * mult;
+    equipDef += (itemDef.stats.defense ?? 0) * mult;
+    equipSpd += (itemDef.stats.speed ?? 0) * mult;
+    equipCritRate += (itemDef.stats.critRate ?? 0) * mult;
+    equipCritDmg += (itemDef.stats.critDamage ?? 0) * mult;
+  }
+
+  const player: BattleFighter = {
+    id: 'player',
+    name: saveData.playerName,
+    currentHp: character.baseStats.maxHp + levelBonus * 15 + equipHp,
+    maxHp: character.baseStats.maxHp + levelBonus * 15 + equipHp,
+    currentMp: character.baseStats.maxMp + levelBonus * 5 + equipMp,
+    maxMp: character.baseStats.maxMp + levelBonus * 5 + equipMp,
+    attack: character.baseStats.attack + levelBonus * 3 + equipAtk,
+    defense: character.baseStats.defense + levelBonus * 2 + equipDef,
+    speed: character.baseStats.speed + levelBonus * 1 + equipSpd,
+    statusEffects: [],
+    isAlive: true,
+  };
+
+  // Determine enemies
+  const isBossFloor = floor > 0 && floor % 10 === 0;
+  const mult = abyssMultiplier(floor);
+
+  const enemies: BattleFighter[] = [];
+  if (isBossFloor) {
+    // Boss floor: 1 random boss
+    const bossId = BOSS_MONSTER_IDS[Math.floor(Math.random() * BOSS_MONSTER_IDS.length)];
+    const bossData = MONSTERS.find((m) => m.id === bossId)!;
+    enemies.push({
+      id: 'enemy_0',
+      name: `${bossData.name}`,
+      currentHp: Math.floor(bossData.stats.maxHp * mult),
+      maxHp: Math.floor(bossData.stats.maxHp * mult),
+      currentMp: 0,
+      maxMp: 0,
+      attack: Math.floor(bossData.stats.attack * mult),
+      defense: Math.floor(bossData.stats.defense * mult),
+      speed: Math.floor(bossData.stats.speed * mult),
+      statusEffects: [],
+      isAlive: true,
+    });
+  } else {
+    // Regular floor: 2-5 random mobs
+    const mobCount = 2 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < mobCount; i++) {
+      const mobId = REGULAR_MONSTER_IDS[Math.floor(Math.random() * REGULAR_MONSTER_IDS.length)];
+      const mobData = MONSTERS.find((m) => m.id === mobId)!;
+      enemies.push({
+        id: `enemy_${i}`,
+        name: `${mobData.name}${mobCount > 1 ? ` ${String.fromCharCode(65 + i)}` : ''}`,
+        currentHp: Math.floor(mobData.stats.maxHp * mult),
+        maxHp: Math.floor(mobData.stats.maxHp * mult),
+        currentMp: 0,
+        maxMp: 0,
+        attack: Math.floor(mobData.stats.attack * mult),
+        defense: Math.floor(mobData.stats.defense * mult),
+        speed: Math.floor(mobData.stats.speed * mult),
+        statusEffects: [],
+        isAlive: true,
+      });
+    }
+  }
+
+  const battleState: BattleState = {
+    id: uuidv4(),
+    status: 'player_turn',
+    turn: 1,
+    player,
+    enemies,
+    log: [],
+  };
+
+  const characterSkills = SKILLS.filter((s) => s.characterId === saveData.characterId || s.characterId === 'common');
+  const skillStates: SkillState[] = characterSkills.map((s) => ({
+    skillId: s.id,
+    currentCooldown: 0,
+    isAvailable: s.type === 'active',
+  }));
+
+  battleStore.set(battleState.id, battleState);
+  skillStateStore.set(battleState.id, skillStates);
+  battleDungeonMap.set(battleState.id, '__abyss__');
+  battleCritMap.set(battleState.id, {
+    critRate: character.baseStats.critRate + equipCritRate,
+    critDamage: character.baseStats.critDamage + equipCritDmg,
+  });
+  abyssFloorMap.set(battleState.id, floor);
+
+  return { battleState, skillStates, floor };
+}
+
+export function calculateAbyssRewards(battleId: string, characterId: string): BattleRewards | null {
+  const battleState = battleStore.get(battleId);
+  const floor = abyssFloorMap.get(battleId);
+  if (!battleState || floor === undefined) return null;
+
+  const isBossFloor = floor > 0 && floor % 10 === 0;
+  const mult = abyssMultiplier(floor);
+
+  // Base rewards scale with floor
+  let totalExp = Math.floor(15000 * mult * 0.1);
+  let totalGold = Math.floor(15000 * mult * 0.1);
+  const items: { itemId: string; quantity: number }[] = [];
+
+  function addDrop(itemId: string) {
+    const existing = items.find((i) => i.itemId === itemId);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      items.push({ itemId, quantity: 1 });
+    }
+  }
+
+  // Equipment drops - legendary only
+  for (const enemy of battleState.enemies) {
+    const isBoss = isBossFloor; // all enemies on boss floor count as boss
+    const dropRate = isBoss ? 1.0 : abyssDropRate(floor);
+
+    if (Math.random() < dropRate) {
+      const equipId = rollEquipment(characterId, 'legendary');
+      if (equipId) addDrop(equipId);
+    }
+  }
+
+  return { exp: totalExp, gold: totalGold, items };
 }

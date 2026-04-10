@@ -12,8 +12,14 @@ export function useCombat() {
   const isAnimating = useCombatStore((s) => s.isAnimating);
   const error = useCombatStore((s) => s.error);
   const startBattleAction = useCombatStore((s) => s.startBattle);
+  const startAbyssBattleAction = useCombatStore((s) => s.startAbyssBattle);
   const useSkillAction = useCombatStore((s) => s.useSkill);
+  const useAbyssSkillAction = useCombatStore((s) => s.useAbyssSkill);
+  const useBattleItemAction = useCombatStore((s) => s.useBattleItem);
   const resetBattleAction = useCombatStore((s) => s.resetBattle);
+  const abyssFloor = useCombatStore((s) => s.abyssFloor);
+  const abyssNextFloor = useCombatStore((s) => s.abyssNextFloor);
+  const isAbyss = useCombatStore((s) => s.isAbyss);
 
   const startBattle = useCallback(
     (dungeonId: string) => startBattleAction(dungeonId),
@@ -60,6 +66,16 @@ export function useCombat() {
     [battleState],
   );
 
+  const startAbyssBattle = useCallback(() => startAbyssBattleAction(), [startAbyssBattleAction]);
+  const useBattleItem = useCallback(
+    (itemId: string) => useBattleItemAction(itemId),
+    [useBattleItemAction],
+  );
+  const useAbyssSkill = useCallback(
+    (skillId: string, targetId: string) => useAbyssSkillAction(skillId, targetId),
+    [useAbyssSkillAction],
+  );
+
   return {
     battleState,
     battleLog,
@@ -71,9 +87,15 @@ export function useCombat() {
     isVictory,
     isDefeat,
     startBattle,
+    startAbyssBattle,
     useSkill,
+    useAbyssSkill,
+    useBattleItem,
     resetBattle,
     canUseSkill,
     getSkillStates,
+    abyssFloor,
+    abyssNextFloor,
+    isAbyss,
   };
 }

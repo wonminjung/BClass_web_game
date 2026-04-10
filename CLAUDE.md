@@ -58,7 +58,7 @@ web_game/
 ## Key Design Decisions
 
 - **Anti-Cheat**: 모든 비즈니스 로직(데미지 계산, 전투 판정, 인벤토리 조작)은 서버에서 검증. 클라이언트는 UI 렌더링 전용.
-- **세이브 코드 인증**: DB 대신 In-Memory Map 사용 (향후 PostgreSQL 교체 예정). 토큰은 base64 기반.
+- **세이브 코드 인증**: SQLite (`server/data/game.db`) + HMAC-SHA256 토큰. SECRET은 DB에 영속 저장.
 - **Action Queue**: 전투 이벤트를 큐 방식으로 순차 처리 (공격 → 데미지 → 상태이상 → 사망 판정).
 - **UI/로직 분리**: useCombat, useAuth, useInventory 훅으로 UI와 비즈니스 로직 철저히 분리.
 - **Path Aliases**: 클라이언트에서 `@/` → `src/`, `@shared/` → `shared/` (vite.config.ts + tsconfig.json).
@@ -73,7 +73,17 @@ web_game/
 - `GET /api/game/characters` - 캐릭터 목록
 - `GET /api/game/dungeons` - 던전 목록
 - `GET /api/game/skills/:characterId` - 캐릭터별 스킬
+- `POST /api/inventory/use` - 소비 아이템 사용
+- `POST /api/inventory/equip` - 장비 착용
+- `POST /api/inventory/unequip` - 장비 해제
+- `GET /api/inventory/enhance-info/:itemId` - 강화 정보
+- `POST /api/combat/abyss/start` - 무한던전 시작
+- `POST /api/combat/abyss/action` - 무한던전 전투 액션
 
 ## Damage Formula
 
 `(attack * skillMultiplier - defense * 0.5) * (isCrit ? critDamage : 1)`, 최소 1
+
+## References
+
+- [프로젝트 종합 분석](docs/project-analysis.md) - 완성도, 게임 데이터, 문제점/개선사항 (2026-04-10)

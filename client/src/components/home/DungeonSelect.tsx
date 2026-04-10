@@ -98,8 +98,43 @@ function DungeonSelect() {
         </Button>
       </div>
 
+      {/* Abyss dungeon card */}
+      <Card
+        hover={playerLevel >= 60}
+        onClick={() => { if (playerLevel >= 60) navigate('/battle/abyss'); }}
+        className={`relative overflow-hidden mb-6 border-2 border-purple-500/50 ${playerLevel < 60 ? 'opacity-50' : ''}`}
+      >
+        <div className="w-full h-36 bg-gradient-to-b from-purple-900/30 to-dungeon-bg rounded-lg mb-3 flex flex-col items-center justify-center">
+          {playerLevel < 60 ? (
+            <span className="text-4xl text-gray-600">&#128274;</span>
+          ) : (
+            <span className="text-5xl text-purple-400">&#8734;</span>
+          )}
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-bold text-purple-400">심연의 나락</h3>
+            <p className="text-xs text-gray-500 mt-1">끝없이 내려가는 지하 던전. 강해질수록 더 깊은 곳으로.</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-purple-300">현재 {saveData?.abyssFloor ?? 0}층</p>
+            <p className="text-[10px] text-gray-500">최고 {saveData?.abyssHighest ?? 0}층</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between text-xs mt-2">
+          <span className={playerLevel < 60 ? 'text-red-400' : 'text-green-400'}>필요 레벨: 60</span>
+          <span className="text-yellow-400">레전드리 장비 드랍</span>
+        </div>
+        {playerLevel < 60 && (
+          <div className="absolute inset-0 bg-dungeon-bg/40 flex items-center justify-center">
+            <p className="text-sm text-gray-400 font-bold">레벨 60 필요</p>
+          </div>
+        )}
+      </Card>
+
+      <h2 className="text-lg font-bold text-gray-400 mb-3">일반 던전</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {dungeons.map((dungeon) => (
+        {[...dungeons].sort((a, b) => b.requiredLevel - a.requiredLevel).map((dungeon) => (
           <DungeonCard
             key={dungeon.id}
             dungeon={dungeon}

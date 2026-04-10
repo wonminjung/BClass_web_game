@@ -34,7 +34,7 @@ router.get('/skills/:characterId', (req: Request, res: Response): void => {
       return;
     }
 
-    const characterSkills = SKILLS.filter((s) => s.characterId === characterId);
+    const characterSkills = SKILLS.filter((s) => s.characterId === characterId || s.characterId === 'common');
 
     res.json({ success: true, data: characterSkills });
   } catch (err) {

@@ -6,6 +6,7 @@ import DungeonSelect from './components/home/DungeonSelect';
 import BattleScreen from './components/battle/BattleScreen';
 import InventoryScreen from './components/inventory/InventoryScreen';
 import BestiaryScreen from './components/bestiary/BestiaryScreen';
+import ShopScreen from './components/shop/ShopScreen';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
       <Route path="/battle/:dungeonId" element={<BattleScreen />} />
       <Route path="/inventory" element={<InventoryScreen />} />
       <Route path="/bestiary" element={<BestiaryScreen />} />
+      <Route path="/shop" element={<ShopScreen />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs><radialGradient id="epicGlow"><stop offset="0%" stop-color="#9B59B6" stop-opacity="0.6"/><stop offset="100%" stop-color="#9B59B6" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="32" cy="32" r="28" fill="url(#epicGlow)" opacity="0.3"/>
+  
+  <path d="M20,8 L20,42 L16,46 L16,52 L42,52 L44,46 L44,42 L44,8 Z" fill="#9B59B6" stroke="#6C3483" stroke-width="0.8"/>
+  <path d="M22,10 L22,40 L18,46 L18,50 L40,50 L42,46 L42,40 L42,10 Z" fill="#C39BD3" opacity="0.12"/>
+  <rect x="22" y="18" width="20" height="3" rx="0.5" fill="#4A235A" opacity="0.2"/>
+  <rect x="22" y="30" width="20" height="3" rx="0.5" fill="#4A235A" opacity="0.2"/>
+  <rect x="16" y="48" width="28" height="4" rx="1" fill="#4A235A" opacity="0.3"/>
+  
+</svg>

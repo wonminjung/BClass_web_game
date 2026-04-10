@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <radialGradient id="legGlow"><stop offset="0%" stop-color="#F39C12" stop-opacity="0.7"/><stop offset="100%" stop-color="#F39C12" stop-opacity="0"/></radialGradient>
+    <filter id="legBlur"><feGaussianBlur stdDeviation="1.5"/></filter>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#legGlow)" opacity="0.35"/>
+  
+  <rect x="28" y="4" width="8" height="40" rx="1.5" fill="#F39C12" stroke="#D35400" stroke-width="1"/>
+  <rect x="30" y="6" width="4" height="36" fill="#F9E79F" opacity="0.2"/>
+  <circle cx="32" cy="6" r="3" fill="#7E5109" stroke="#D35400" stroke-width="0.8"/>
+  <circle cx="32" cy="6" r="1.5" fill="#F39C12" opacity="0.3"/>
+  <rect x="24" y="40" width="16" height="4" rx="1" fill="#7E5109" stroke="#D35400" stroke-width="0.6"/>
+  <path d="M28,44 L24,58 Q23,60 26,60 L32,60" fill="#6B4226" stroke="#4A2E1A" stroke-width="0.8"/>
+  <path d="M36,44 L36,58 Q36,60 34,60 L32,60" fill="#5C3A1E" stroke="#4A2E1A" stroke-width="0.8"/>
+  <line x1="26" y1="48" x2="34" y2="48" stroke="#4A2E1A" stroke-width="0.6"/>
+  <circle cx="12" cy="10" r="1.5" fill="#F9E79F" opacity="0.8"><animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" repeatCount="indefinite"/></circle>
+  <circle cx="52" cy="14" r="1" fill="#F5B041" opacity="0.7"><animate attributeName="opacity" values="0.7;0.1;0.7" dur="1.5s" repeatCount="indefinite"/></circle>
+  <circle cx="8" cy="50" r="1.2" fill="#FCF3CF" opacity="0.6"><animate attributeName="opacity" values="0.6;0.15;0.6" dur="1.8s" repeatCount="indefinite"/></circle>
+  <circle cx="54" cy="48" r="1" fill="#F9E79F" opacity="0.7"><animate attributeName="opacity" values="0.5;0.9;0.5" dur="2.2s" repeatCount="indefinite"/></circle>
+</svg>

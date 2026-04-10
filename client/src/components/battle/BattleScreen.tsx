@@ -3,7 +3,7 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCombat } from '@/hooks/useCombat';
 import { useAuth } from '@/hooks/useAuth';
-import { SKILLS } from '@shared/data';
+import { SKILLS, ITEMS } from '@shared/data';
 import StatBar from '@/components/common/StatBar';
 import SkillBar from './SkillBar';
 import BattleResult from './BattleResult';
@@ -63,11 +63,18 @@ function BattleScreen() {
     isVictory,
     isDefeat,
     startBattle,
+    startAbyssBattle,
     useSkill,
+    useAbyssSkill,
     canUseSkill,
     getSkillStates,
     resetBattle,
+    useBattleItem,
+    abyssFloor,
+    abyssNextFloor,
   } = useCombat();
+
+  const isAbyssMode = dungeonId === 'abyss';
 
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -85,11 +92,13 @@ function BattleScreen() {
       navigate('/', { replace: true });
       return;
     }
-    if (dungeonId) {
-      resetBattle();
+    resetBattle();
+    if (isAbyssMode) {
+      startAbyssBattle();
+    } else if (dungeonId) {
       startBattle(dungeonId);
     }
-  }, [dungeonId, isAuthenticated, navigate, resetBattle, startBattle]);
+  }, [dungeonId, isAbyssMode, isAuthenticated, navigate, resetBattle, startBattle, startAbyssBattle]);
 
   // Auto-select first alive enemy
   useEffect(() => {
@@ -111,7 +120,7 @@ function BattleScreen() {
 
   const characterSkills = useMemo(() => {
     if (!saveData?.characterId) return [];
-    return SKILLS.filter((s) => s.characterId === saveData.characterId);
+    return SKILLS.filter((s) => s.characterId === saveData.characterId || s.characterId === 'common');
   }, [saveData?.characterId]);
 
   const handleTargetSelect = useCallback((id: string) => {
@@ -128,13 +137,20 @@ function BattleScreen() {
       let targetId: string;
       if (skill.targetType === 'self' || skill.targetType === 'all_enemies' || skill.targetType === 'all_allies') {
         targetId = battleState?.player.id ?? 'player';
-      } else if (selectedTargetId) {
-        targetId = selectedTargetId;
       } else {
-        return;
+        // Use selected target, or auto-pick first alive enemy
+        const target = selectedTargetId
+          ? battleState?.enemies.find((e) => e.id === selectedTargetId && e.isAlive)
+          : null;
+        const fallback = battleState?.enemies.find((e) => e.isAlive);
+        targetId = target?.id ?? fallback?.id ?? '';
+        if (!targetId) return;
+        if (!target && fallback) setSelectedTargetId(fallback.id);
       }
 
-      const result = await useSkill(skillId, targetId);
+      const result = isAbyssMode
+        ? await useAbyssSkill(skillId, targetId)
+        : await useSkill(skillId, targetId);
 
       // 승리 시 서버에서 반환한 saveData로 로컬 상태 동기화
       if (result?.saveData) {
@@ -162,6 +178,12 @@ function BattleScreen() {
     navigate('/home');
   }, [resetBattle, navigate]);
 
+  const handleNextFloor = useCallback(() => {
+    setSelectedTargetId(null);
+    resetBattle();
+    startAbyssBattle();
+  }, [resetBattle, startAbyssBattle]);
+
   const logTypeColor: Record<string, string> = {
     damage: 'text-dungeon-health',
     heal: 'text-dungeon-xp',
@@ -183,6 +205,16 @@ function BattleScreen() {
     <div className="max-w-4xl mx-auto p-4 min-h-screen flex flex-col">
       {/* Turn indicator */}
       <div className="text-center mb-2">
+        {isAbyssMode && abyssFloor !== null && (
+          <span className="text-sm font-bold text-purple-400 mr-3">
+            심연 {abyssFloor}층 {abyssFloor > 0 && abyssFloor % 10 === 0 ? '(BOSS)' : ''}
+          </span>
+        )}
+        {!isAbyssMode && (
+          <span className="text-xs text-gray-400 mr-2">
+            웨이브 {(battleState.log.filter((l) => l.type === 'system' && l.message.includes('웨이브')).length) + 1}/3
+          </span>
+        )}
         <span className="text-xs text-gray-500">턴 {battleState.turn}</span>
         <span className="text-xs text-dungeon-accent ml-3">
           {battleState.status === 'player_turn'
@@ -257,6 +289,35 @@ function BattleScreen() {
         onSkillSelect={handleSkillSelect}
       />
 
+      {/* Consumable items */}
+      {isPlayerTurn && saveData?.inventory && (() => {
+        const consumables = saveData.inventory
+          .map((s) => ({ slot: s, data: ITEMS.find((i) => i.id === s.itemId) }))
+          .filter((c) => c.data?.type === 'consumable' && c.slot.quantity > 0);
+        if (consumables.length === 0) return null;
+        return (
+          <div className="flex gap-2 mt-2 justify-center flex-wrap">
+            {consumables.map((c) => (
+              <button
+                key={c.slot.itemId}
+                type="button"
+                disabled={isAnimating}
+                onClick={async () => {
+                  if (isAnimating) return;
+                  const result = await useBattleItem(c.slot.itemId);
+                  if (result?.saveData) updateSaveData(result.saveData);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dungeon-panel border border-dungeon-border hover:border-green-500/50 transition-colors disabled:opacity-50"
+              >
+                <span className="text-sm">{c.data?.useEffect?.type === 'heal_hp' ? '\u2764' : '\uD83D\uDCA7'}</span>
+                <span className="text-xs text-gray-200">{c.data?.name}</span>
+                <span className="text-[10px] text-gray-500">x{c.slot.quantity}</span>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Result modal */}
       <BattleResult
         isOpen={isVictory || isDefeat}
@@ -266,6 +327,10 @@ function BattleScreen() {
         onContinue={handleContinue}
         onRetry={handleRetry}
         onHome={handleHome}
+        isAbyss={isAbyssMode}
+        abyssFloor={abyssFloor}
+        abyssNextFloor={abyssNextFloor}
+        onNextFloor={handleNextFloor}
       />
     </div>
   );

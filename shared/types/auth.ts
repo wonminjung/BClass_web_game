@@ -8,8 +8,13 @@ export interface SaveData {
   gems: number;
   inventory: { itemId: string; quantity: number }[];
   equippedItems: Record<string, string | null>;
+  enhanceLevels: Record<string, { level: number; exp: number }>;
   bestiary: BestiaryEntry[];
   dungeonProgress: Record<string, DungeonRecord>;
+  abyssFloor: number;
+  abyssHighest: number;
+  shopStock: ShopItem[];
+  shopRefreshAt: string;
   createdAt: string;
   lastPlayedAt: string;
 }
@@ -36,6 +41,12 @@ export interface AuthResponse {
   message: string;
   data?: SaveData;
   token?: string;
+}
+
+export interface ShopItem {
+  itemId: string;
+  price: number;
+  sold: boolean;
 }
 
 export interface NewGameRequest {

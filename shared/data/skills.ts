@@ -160,4 +160,12 @@ export const SKILLS: Skill[] = [
     manaCost: 0, cooldown: 0, damageMultiplier: 0.4, healMultiplier: 0,
     statusEffect: null, animation: 'dark',
   },
+
+  // ── 공통 스킬 (모든 캐릭터) ──
+  {
+    id: 'common_basic_attack', name: '기본 공격', description: '마나를 소모하지 않는 기본 공격.',
+    characterId: 'common', type: 'active', targetType: 'single_enemy', iconUrl: '/assets/skills/basic_attack.png',
+    manaCost: 0, cooldown: 0, damageMultiplier: 1.0, healMultiplier: 0,
+    statusEffect: null, animation: 'slash',
+  },
 ];

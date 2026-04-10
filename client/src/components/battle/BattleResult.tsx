@@ -13,6 +13,10 @@ interface BattleResultProps {
   onContinue: () => void;
   onRetry: () => void;
   onHome: () => void;
+  isAbyss?: boolean;
+  abyssFloor?: number | null;
+  abyssNextFloor?: number | null;
+  onNextFloor?: () => void;
 }
 
 const BattleResult = React.memo(function BattleResult({
@@ -23,25 +27,35 @@ const BattleResult = React.memo(function BattleResult({
   onContinue,
   onRetry,
   onHome,
+  isAbyss,
+  abyssFloor,
+  abyssNextFloor,
+  onNextFloor,
 }: BattleResultProps) {
   const handleContinue = useCallback(() => onContinue(), [onContinue]);
   const handleRetry = useCallback(() => onRetry(), [onRetry]);
   const handleHome = useCallback(() => onHome(), [onHome]);
+  const handleNextFloor = useCallback(() => onNextFloor?.(), [onNextFloor]);
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={isVictory ? handleContinue : handleHome}
-      title={isVictory ? '승리!' : '패배...'}
+      title={isVictory ? (isAbyss ? `${abyssFloor}층 클리어!` : '승리!') : '패배...'}
     >
       {isVictory && rewards ? (
         <div className="space-y-4">
-          <p className="text-dungeon-xp text-center font-bold text-lg">전투에서 승리했습니다!</p>
+          {isAbyss ? (
+            <p className="text-purple-400 text-center font-bold text-lg">
+              심연 {abyssFloor}층을 돌파했습니다!
+            </p>
+          ) : (
+            <p className="text-green-400 text-center font-bold text-lg">전투에서 승리했습니다!</p>
+          )}
 
-          {/* 레벨업 알림 */}
           {levelUp && levelUp.levelsGained > 0 && (
-            <div className="text-center panel bg-dungeon-accent/10 border-dungeon-accent/30">
-              <p className="text-dungeon-gold font-bold text-lg">
+            <div className="text-center panel bg-yellow-500/10 border-yellow-500/30">
+              <p className="text-yellow-400 font-bold text-lg">
                 레벨 업! Lv.{levelUp.newLevel - levelUp.levelsGained} &rarr; Lv.{levelUp.newLevel}
               </p>
             </div>
@@ -50,11 +64,11 @@ const BattleResult = React.memo(function BattleResult({
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">획득 경험치</span>
-              <span className="text-dungeon-xp font-bold">+{rewards.exp} EXP</span>
+              <span className="text-green-400 font-bold">+{rewards.exp} EXP</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">획득 골드</span>
-              <span className="text-dungeon-gold font-bold">+{rewards.gold} G</span>
+              <span className="text-yellow-400 font-bold">+{rewards.gold} G</span>
             </div>
 
             {rewards.items.length > 0 && (
@@ -64,11 +78,10 @@ const BattleResult = React.memo(function BattleResult({
                   {rewards.items.map((drop) => {
                     const item = ITEMS.find((i) => i.id === drop.itemId);
                     return (
-                      <div
-                        key={drop.itemId}
-                        className="flex justify-between text-sm panel py-1 px-2"
-                      >
-                        <span className="text-gray-200">{item?.name ?? drop.itemId}</span>
+                      <div key={drop.itemId} className="flex justify-between text-sm panel py-1 px-2">
+                        <span className={`${item?.rarity === 'legendary' ? 'text-yellow-400 font-bold' : 'text-gray-200'}`}>
+                          {item?.name ?? drop.itemId}
+                        </span>
                         <span className="text-gray-400">x{drop.quantity}</span>
                       </div>
                     );
@@ -80,25 +93,54 @@ const BattleResult = React.memo(function BattleResult({
 
           <p className="text-[10px] text-gray-600 text-center">진행 상황이 자동 저장되었습니다</p>
 
-          <Button variant="primary" size="lg" onClick={handleContinue} className="w-full">
-            계속하기
-          </Button>
+          {isAbyss ? (
+            <div className="flex gap-3">
+              <Button variant="primary" size="lg" onClick={handleNextFloor} className="flex-1">
+                {abyssNextFloor}층으로 진행
+              </Button>
+              <Button variant="secondary" size="md" onClick={handleHome} className="flex-1">
+                귀환
+              </Button>
+            </div>
+          ) : (
+            <Button variant="primary" size="lg" onClick={handleContinue} className="w-full">
+              계속하기
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-dungeon-health text-center font-bold text-lg">
-            전투에서 패배했습니다...
+          <p className="text-red-400 text-center font-bold text-lg">
+            {isAbyss ? `심연 ${abyssFloor}층에서 쓰러졌습니다...` : '전투에서 패배했습니다...'}
           </p>
+          {isAbyss && abyssNextFloor !== null && abyssNextFloor !== undefined && (
+            <p className="text-sm text-purple-300 text-center">
+              {abyssNextFloor}층으로 후퇴합니다 (-10층)
+            </p>
+          )}
           <p className="text-sm text-gray-500 text-center">
             더 강해져서 다시 도전하세요
           </p>
           <div className="flex gap-3">
-            <Button variant="primary" size="md" onClick={handleRetry} className="flex-1">
-              다시 도전
-            </Button>
-            <Button variant="secondary" size="md" onClick={handleHome} className="flex-1">
-              홈으로
-            </Button>
+            {isAbyss ? (
+              <>
+                <Button variant="primary" size="md" onClick={handleNextFloor} className="flex-1">
+                  {abyssNextFloor}층에서 재도전
+                </Button>
+                <Button variant="secondary" size="md" onClick={handleHome} className="flex-1">
+                  귀환
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="primary" size="md" onClick={handleRetry} className="flex-1">
+                  다시 도전
+                </Button>
+                <Button variant="secondary" size="md" onClick={handleHome} className="flex-1">
+                  홈으로
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}

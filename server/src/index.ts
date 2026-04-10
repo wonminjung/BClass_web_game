@@ -6,6 +6,8 @@ import rateLimit from 'express-rate-limit';
 import authRouter from './routes/auth';
 import gameRouter from './routes/game';
 import combatRouter from './routes/combat';
+import inventoryRouter from './routes/inventory';
+import shopRouter from './routes/shop';
 
 // ────────────────────────────────────────────────────────────
 // App setup
@@ -44,6 +46,8 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/api/auth', authRouter);
 app.use('/api/game', gameRouter);
 app.use('/api/combat', combatRouter);
+app.use('/api/inventory', inventoryRouter);
+app.use('/api/shop', shopRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

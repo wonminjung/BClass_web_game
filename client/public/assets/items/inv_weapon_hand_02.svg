@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs><radialGradient id="epicGlow"><stop offset="0%" stop-color="#9B59B6" stop-opacity="0.6"/><stop offset="100%" stop-color="#9B59B6" stop-opacity="0"/></radialGradient></defs>
+  <circle cx="32" cy="32" r="28" fill="url(#epicGlow)" opacity="0.3"/>
+  
+  <rect x="22" y="30" width="20" height="14" rx="3" fill="#6B4226" stroke="#4A2E1A" stroke-width="0.8"/>
+  <rect x="24" y="32" width="4" height="16" rx="1.5" fill="#5C3A1E" stroke="#4A2E1A" stroke-width="0.6"/>
+  <rect x="30" y="32" width="4" height="18" rx="1.5" fill="#5C3A1E" stroke="#4A2E1A" stroke-width="0.6"/>
+  <rect x="36" y="32" width="4" height="16" rx="1.5" fill="#5C3A1E" stroke="#4A2E1A" stroke-width="0.6"/>
+  <polygon points="20,30 16,14 22,12 26,28" fill="#9B59B6" stroke="#6C3483" stroke-width="0.8"/>
+  <polygon points="30,28 28,8 34,8 36,28" fill="#9B59B6" stroke="#6C3483" stroke-width="0.8"/>
+  <polygon points="38,30 42,14 48,16 44,30" fill="#9B59B6" stroke="#6C3483" stroke-width="0.8"/>
+  
+</svg>
