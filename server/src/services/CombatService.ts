@@ -25,6 +25,10 @@ export function getBattle(id: string): BattleState | undefined {
   return battleStore.get(id);
 }
 
+export function getBattleDungeonId(battleId: string): string | undefined {
+  return battleDungeonMap.get(battleId);
+}
+
 export function getSkillStates(battleId: string): SkillState[] {
   return skillStateStore.get(battleId) ?? [];
 }

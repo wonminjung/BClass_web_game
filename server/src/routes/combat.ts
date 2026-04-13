@@ -210,8 +210,8 @@ router.post(
       // 웨이브 클리어 공통 처리: 보상 지급 + 다음 웨이브 or 던전 클리어
       function handleWaveClear() {
         const isLast = CombatService.isLastWave(battleId);
-        const waveInfo = CombatService.getWaveInfo(battleId);
-        const dungeonName = DUNGEONS.find((d) => d.id === dungeonId)?.name ?? dungeonId;
+        const battleDungeonId = CombatService.getBattleDungeonId(battleId) ?? '';
+        const dungeonName = DUNGEONS.find((d) => d.id === battleDungeonId)?.name ?? battleDungeonId;
         const { rewards, levelUp } = applyWaveRewards(saveCode, battleId, dungeonName);
 
         if (!isLast) {
