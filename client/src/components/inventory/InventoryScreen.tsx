@@ -485,6 +485,8 @@ function InventoryScreen() {
   } = useInventory();
 
   const [tab, setTab] = useState<'equip' | 'bag'>('equip');
+  const [equipFilter, setEquipFilter] = useState<string>('all');
+  const [equipSort, setEquipSort] = useState<'name' | 'power'>('power');
   const [selectedItem, setSelectedItem] = useState<ResolvedItem | null>(null);
   const [selectedEquipSlot, setSelectedEquipSlot] = useState<EquippedSlotInfo | null>(null);
   const [equipSelectSlot, setEquipSelectSlot] = useState<string | null>(null);
@@ -492,6 +494,52 @@ function InventoryScreen() {
   useEffect(() => {
     if (!isAuthenticated) navigate('/', { replace: true });
   }, [isAuthenticated, navigate]);
+
+  // Calculate item total power (all stats summed with enhance multiplier)
+  const getItemPower = useCallback((item: ResolvedItem) => {
+    const s = item.data.stats;
+    if (!s) return 0;
+    const mult = 1 + getEnhanceLevel(item.data.id);
+    return ((s.attack ?? 0) + (s.defense ?? 0) + (s.hp ?? 0) + (s.mp ?? 0) +
+      (s.speed ?? 0) + (s.critRate ?? 0) * 500 + (s.critDamage ?? 0) * 200) * mult;
+  }, [getEnhanceLevel]);
+
+  // Filtered + sorted equipment list
+  const filteredEquipment = useMemo(() => {
+    let list = equipmentItems;
+
+    // Filter by type
+    if (equipFilter !== 'all') {
+      if (equipFilter === 'offhand') {
+        list = list.filter((i) => i.data.type === 'shield' || i.data.type === 'offhand');
+      } else {
+        list = list.filter((i) => i.data.type === equipFilter);
+      }
+    }
+
+    // Sort
+    if (equipSort === 'power') {
+      list = [...list].sort((a, b) => getItemPower(b) - getItemPower(a));
+    } else {
+      list = [...list].sort((a, b) => a.data.name.localeCompare(b.data.name));
+    }
+
+    return list;
+  }, [equipmentItems, equipFilter, equipSort, getItemPower]);
+
+  const FILTER_OPTIONS = [
+    { key: 'all', label: '전체' },
+    { key: 'weapon', label: '무기' },
+    { key: 'offhand', label: '보조' },
+    { key: 'helm', label: '투구' },
+    { key: 'shoulders', label: '견갑' },
+    { key: 'chest', label: '흉갑' },
+    { key: 'gloves', label: '장갑' },
+    { key: 'belt', label: '허리' },
+    { key: 'legs', label: '다리' },
+    { key: 'boots', label: '장화' },
+    { key: 'accessory', label: '장신구' },
+  ];
 
   // Candidates for equip selection (items in inventory matching the slot type)
   const equipCandidates = useMemo(() => {
@@ -593,14 +641,44 @@ function InventoryScreen() {
 
           {/* Equipment inventory */}
           <div>
-            <h2 className="text-sm font-bold text-gray-400 mb-3">
-              보유 장비 ({equipmentItems.length})
-            </h2>
-            {equipmentItems.length === 0 ? (
-              <p className="text-center text-gray-600 py-8">보유한 장비가 없습니다</p>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-bold text-gray-400">
+                보유 장비 ({filteredEquipment.length}{equipFilter !== 'all' ? `/${equipmentItems.length}` : ''})
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEquipSort(equipSort === 'power' ? 'name' : 'power')}
+                  className="text-[10px] px-2 py-1 rounded bg-dungeon-panel border border-dungeon-border text-gray-400 hover:text-gray-200"
+                >
+                  {equipSort === 'power' ? '성능순' : '이름순'}
+                </button>
+              </div>
+            </div>
+            {/* Filter tabs */}
+            <div className="flex gap-1 mb-3 flex-wrap">
+              {FILTER_OPTIONS.map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setEquipFilter(opt.key)}
+                  className={`px-2 py-1 rounded text-[11px] transition-colors ${
+                    equipFilter === opt.key
+                      ? 'bg-dungeon-accent/20 text-dungeon-accent border border-dungeon-accent/40'
+                      : 'text-gray-500 hover:text-gray-300 border border-transparent'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {filteredEquipment.length === 0 ? (
+              <p className="text-center text-gray-600 py-8">
+                {equipmentItems.length === 0 ? '보유한 장비가 없습니다' : '해당 부위 장비가 없습니다'}
+              </p>
             ) : (
               <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
-                {equipmentItems.map((item) => (
+                {filteredEquipment.map((item) => (
                   <ItemSlot
                     key={item.slot.itemId}
                     item={item}
