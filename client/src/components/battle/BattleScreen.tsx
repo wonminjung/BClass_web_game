@@ -266,9 +266,29 @@ function BattleScreen() {
 
       let chosenSkillId: string;
       if (availableSkills.length > 0) {
-        // Sort by damageMultiplier descending, pick the best
-        availableSkills.sort((a, b) => b.damageMultiplier - a.damageMultiplier);
-        chosenSkillId = availableSkills[0].id;
+        const aliveCount = battle.enemies.filter((e) => e.isAlive).length;
+
+        if (aliveCount >= 2) {
+          // 2마리 이상: 광역기 우선, 없으면 단일 최강
+          const aoeSkills = availableSkills.filter((s) => s.targetType === 'all_enemies');
+          if (aoeSkills.length > 0) {
+            aoeSkills.sort((a, b) => b.damageMultiplier - a.damageMultiplier);
+            chosenSkillId = aoeSkills[0].id;
+          } else {
+            availableSkills.sort((a, b) => b.damageMultiplier - a.damageMultiplier);
+            chosenSkillId = availableSkills[0].id;
+          }
+        } else {
+          // 1마리: 단일 대상 최강 스킬
+          const singleSkills = availableSkills.filter((s) => s.targetType === 'single_enemy');
+          if (singleSkills.length > 0) {
+            singleSkills.sort((a, b) => b.damageMultiplier - a.damageMultiplier);
+            chosenSkillId = singleSkills[0].id;
+          } else {
+            availableSkills.sort((a, b) => b.damageMultiplier - a.damageMultiplier);
+            chosenSkillId = availableSkills[0].id;
+          }
+        }
       } else {
         chosenSkillId = 'common_basic_attack';
       }
