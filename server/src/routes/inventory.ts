@@ -181,4 +181,42 @@ router.get('/enhance-info/:itemId', (req: Request, res: Response): void => {
   }
 });
 
+// ── POST /enhance-gold ───────────────────────────────────────
+router.post(
+  '/enhance-gold',
+  validate([{ name: 'itemId', type: 'string', minLength: 1 }]),
+  (req: Request, res: Response): void => {
+    try {
+      const saveCode = extractSaveCode(req, res);
+      if (!saveCode) return;
+
+      const saveData = AuthService.getSaveData(saveCode);
+      if (!saveData) {
+        res.status(404).json({ success: false, message: 'Save data not found' });
+        return;
+      }
+
+      const { itemId } = req.body;
+      const result = GameService.enhanceWithGold(saveData, itemId);
+
+      if (!result.success) {
+        res.status(400).json({ success: false, message: result.error });
+        return;
+      }
+
+      AuthService.saveProgress(saveCode, saveData);
+      res.json({
+        success: true,
+        enhanced: result.enhanced,
+        goldSpent: result.goldSpent,
+        successRate: result.successRate,
+        saveData,
+      });
+    } catch (err) {
+      console.error('[inventory/enhance-gold]', err);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  },
+);
+
 export default router;

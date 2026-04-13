@@ -300,6 +300,96 @@ export function getEnhanceInfo(saveData: SaveData, itemId: string): EnhanceInfo 
 }
 
 // ────────────────────────────────────────────────────────────
+// Gold Enhancement
+// ────────────────────────────────────────────────────────────
+
+const RARITY_BASE_GOLD: Record<string, number> = {
+  common: 100,
+  uncommon: 500,
+  rare: 2000,
+  epic: 10000,
+  legendary: 50000,
+};
+
+/** Gold cost for enhancing to targetLevel */
+export function goldEnhanceCost(rarity: string, targetLevel: number): number {
+  const base = RARITY_BASE_GOLD[rarity] ?? 1000;
+  return base * targetLevel * targetLevel;
+}
+
+/** Success rate for gold enhancement: max(5, 50 - (level-5)*1.5) */
+export function goldEnhanceSuccessRate(targetLevel: number): number {
+  if (targetLevel <= 5) return 50;
+  return Math.max(5, 50 - (targetLevel - 5) * 1.5);
+}
+
+export interface GoldEnhanceResult {
+  success: boolean;
+  enhanced: boolean;
+  goldSpent: number;
+  successRate: number;
+  error?: string;
+}
+
+export function enhanceWithGold(saveData: SaveData, itemId: string): GoldEnhanceResult {
+  const itemDef = ITEMS.find((i) => i.id === itemId);
+  if (!itemDef) return { success: false, enhanced: false, goldSpent: 0, successRate: 0, error: 'Item not found' };
+
+  if (!EQUIP_TYPES.has(itemDef.type)) {
+    return { success: false, enhanced: false, goldSpent: 0, successRate: 0, error: 'Equipment only' };
+  }
+
+  // Check ownership
+  if (!ownsEquipment(saveData, itemId)) {
+    return { success: false, enhanced: false, goldSpent: 0, successRate: 0, error: 'Item not owned' };
+  }
+
+  const entry = saveData.enhanceLevels[itemId] ?? { level: 0, exp: 0 };
+  if (entry.level >= MAX_ENHANCE_LEVEL) {
+    return { success: false, enhanced: false, goldSpent: 0, successRate: 0, error: 'Already max level' };
+  }
+
+  const targetLevel = entry.level + 1;
+  const cost = goldEnhanceCost(itemDef.rarity, targetLevel);
+  const rate = goldEnhanceSuccessRate(targetLevel);
+
+  if (saveData.gold < cost) {
+    return { success: false, enhanced: false, goldSpent: 0, successRate: rate, error: `Gold 부족 (필요: ${cost.toLocaleString()}G)` };
+  }
+
+  // Deduct gold
+  saveData.gold -= cost;
+
+  // Roll success
+  const roll = Math.random() * 100;
+  if (roll < rate) {
+    entry.level = targetLevel;
+    saveData.enhanceLevels[itemId] = entry;
+    return { success: true, enhanced: true, goldSpent: cost, successRate: rate };
+  }
+
+  // Failed — gold lost, level stays
+  saveData.enhanceLevels[itemId] = entry;
+  return { success: true, enhanced: false, goldSpent: cost, successRate: rate };
+}
+
+/** Get gold enhance info for UI */
+export function getGoldEnhanceInfo(saveData: SaveData, itemId: string): { cost: number; rate: number; currentLevel: number } | null {
+  const itemDef = ITEMS.find((i) => i.id === itemId);
+  if (!itemDef || !EQUIP_TYPES.has(itemDef.type)) return null;
+
+  const entry = saveData.enhanceLevels[itemId] ?? { level: 0, exp: 0 };
+  if (entry.level >= MAX_ENHANCE_LEVEL) return null;
+
+  const targetLevel = entry.level + 1;
+  return {
+    cost: goldEnhanceCost(itemDef.rarity, targetLevel),
+    rate: goldEnhanceSuccessRate(targetLevel),
+    currentLevel: entry.level,
+  };
+}
+
+// ────────────────────────────────────────────────────────────
 // Bestiary
 // ────────────────────────────────────────────────────────────
 

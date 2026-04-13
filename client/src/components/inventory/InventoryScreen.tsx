@@ -6,6 +6,7 @@ import { useInventory } from '@/hooks/useInventory';
 import type { ResolvedItem, EquippedSlotInfo } from '@/hooks/useInventory';
 import type { Item } from '@shared/types';
 import { ITEMS, SETS, CHARACTERS } from '@shared/data';
+import axios from 'axios';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
 import Modal from '@/components/common/Modal';
@@ -383,6 +384,9 @@ function ItemDetailModal({
   onUse,
   onEquip,
   onSell,
+  onGoldEnhance,
+  goldEnhanceInfo,
+  gold,
 }: {
   item: Item | null;
   enhanceLevel: number;
@@ -392,6 +396,9 @@ function ItemDetailModal({
   onUse: (itemId: string) => void;
   onEquip: (itemId: string, slot: string) => void;
   onSell: (itemId: string) => void;
+  onGoldEnhance: (itemId: string) => void;
+  goldEnhanceInfo: { cost: number; rate: number } | null;
+  gold: number;
 }) {
   if (!item) return null;
 
@@ -454,6 +461,29 @@ function ItemDetailModal({
           </p>
         )}
 
+        {/* Gold enhance */}
+        {isEquipType && goldEnhanceInfo && (
+          <div className="panel p-2 text-center space-y-1">
+            <p className="text-xs text-gray-400">골드 강화 (+{enhanceLevel} → +{enhanceLevel + 1})</p>
+            <p className="text-sm">
+              <span className="text-yellow-400 font-bold">{goldEnhanceInfo.cost.toLocaleString()}G</span>
+              <span className="text-gray-500 mx-2">|</span>
+              <span className={`font-bold ${goldEnhanceInfo.rate >= 50 ? 'text-green-400' : goldEnhanceInfo.rate >= 20 ? 'text-yellow-400' : 'text-red-400'}`}>
+                성공률 {goldEnhanceInfo.rate.toFixed(1)}%
+              </span>
+            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={gold < goldEnhanceInfo.cost}
+              onClick={() => onGoldEnhance(item.id)}
+              className="w-full"
+            >
+              {gold < goldEnhanceInfo.cost ? 'Gold 부족' : '골드 강화'}
+            </Button>
+          </div>
+        )}
+
         <div className="flex gap-2">
           {item.type === 'consumable' && (
             <Button variant="primary" size="sm" onClick={() => { onUse(item.id); onClose(); }} className="flex-1">
@@ -487,7 +517,7 @@ function ItemDetailModal({
 
 function InventoryScreen() {
   const navigate = useNavigate();
-  const { isAuthenticated, saveData } = useAuth();
+  const { isAuthenticated, saveData, updateSaveData } = useAuth();
   const {
     equipmentItems, nonEquipmentItems, equippedSlots,
     getEnhanceLevel, getEnhanceExp, totalGold, totalGems,
@@ -832,6 +862,38 @@ function InventoryScreen() {
         onUse={useItem}
         onEquip={handleEquip}
         onSell={(itemId) => { sellItem(itemId, 1); }}
+        gold={totalGold}
+        goldEnhanceInfo={(() => {
+          if (!selectedItem) return null;
+          const rarity = selectedItem.data.rarity;
+          const level = getEnhanceLevel(selectedItem.data.id);
+          if (level >= 99) return null;
+          const RARITY_BASE: Record<string, number> = { common: 100, uncommon: 500, rare: 2000, epic: 10000, legendary: 50000 };
+          const target = level + 1;
+          const cost = (RARITY_BASE[rarity] ?? 1000) * target * target;
+          const rate = target <= 5 ? 50 : Math.max(5, 50 - (target - 5) * 1.5);
+          return { cost, rate };
+        })()}
+        onGoldEnhance={async (itemId) => {
+          try {
+            const res = await axios.post('/api/inventory/enhance-gold', { itemId });
+            if (res.data.success) {
+              updateSaveData(res.data.saveData);
+              if (res.data.enhanced) {
+                alert(`강화 성공! (${res.data.goldSpent.toLocaleString()}G 소모)`);
+              } else {
+                alert(`강화 실패... (${res.data.goldSpent.toLocaleString()}G 소모)`);
+              }
+              // Re-select to refresh info
+              const updated = res.data.saveData;
+              if (updated) {
+                setSelectedItem((prev) => prev ? { ...prev } : null);
+              }
+            }
+          } catch (err: any) {
+            alert(err.response?.data?.message || '강화 실패');
+          }
+        }}
       />
 
       <EquippedDetailModal
