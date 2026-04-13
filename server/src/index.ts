@@ -26,11 +26,11 @@ app.use(
   }),
 );
 
-// Rate limiting - 100 requests per minute per IP
+// Rate limiting - 600 requests per minute per IP
 app.use(
   rateLimit({
     windowMs: 60 * 1000,
-    max: 100,
+    max: 600,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Too many requests, please try again later' },
