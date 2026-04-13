@@ -263,7 +263,7 @@ function BattleScreen() {
             </span>
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 mb-2">
           <StatBar
             current={battleState.player.currentHp}
             max={battleState.player.maxHp}
@@ -278,6 +278,11 @@ function BattleScreen() {
             label="MP"
             showNumbers
           />
+        </div>
+        <div className="flex gap-3 text-[11px]">
+          <span className="text-red-400">ATK {battleState.player.attack}</span>
+          <span className="text-blue-400">DEF {battleState.player.defense}</span>
+          <span className="text-green-400">SPD {battleState.player.speed}</span>
         </div>
       </div>
 
