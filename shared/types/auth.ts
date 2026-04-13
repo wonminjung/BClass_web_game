@@ -16,6 +16,10 @@ export interface SaveData {
   shopStock: ShopItem[];
   shopRefreshAt: string;
   dropHistory: DropRecord[];
+  achievements: string[];  // completed achievement IDs
+  totalKills: number;
+  lastDailyReward: string;
+  skillLevels: Record<string, number>;  // skillId → level
   createdAt: string;
   lastPlayedAt: string;
 }

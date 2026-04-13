@@ -120,6 +120,10 @@ export function createNewGame(
     shopStock: [],
     shopRefreshAt: now,
     dropHistory: [],
+    achievements: [],
+    totalKills: 0,
+    lastDailyReward: '',
+    skillLevels: {},
     createdAt: now,
     lastPlayedAt: now,
   };

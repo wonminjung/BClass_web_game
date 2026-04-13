@@ -83,7 +83,11 @@ function BattleScreen() {
   const [flashEnemies, setFlashEnemies] = useState<Set<string>>(new Set());
   const [healFlash, setHealFlash] = useState(false);
   const [skillText, setSkillText] = useState<string | null>(null);
+  const [autoBattle, setAutoBattle] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
+  const autoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const handleSkillSelectRef = useRef<(skillId: string) => Promise<void>>();
+  const handleNextFloorRef = useRef<() => void>();
 
   // Auto-scroll battle log
   useEffect(() => {
@@ -214,6 +218,85 @@ function BattleScreen() {
     startAbyssBattle();
   }, [resetBattle, startAbyssBattle]);
 
+  // Keep refs in sync for auto-battle to avoid stale closures
+  handleSkillSelectRef.current = handleSkillSelect;
+  handleNextFloorRef.current = handleNextFloor;
+
+  // Auto-battle logic
+  useEffect(() => {
+    if (!autoBattle) {
+      if (autoIntervalRef.current) {
+        clearInterval(autoIntervalRef.current);
+        autoIntervalRef.current = null;
+      }
+      return;
+    }
+
+    autoIntervalRef.current = setInterval(() => {
+      const state = useCombatStore.getState();
+      const battle = state.battleState;
+      if (!battle) return;
+
+      // On defeat, stop auto-battle
+      if (battle.status === 'defeat') {
+        setAutoBattle(false);
+        return;
+      }
+
+      // On victory in abyss mode, auto-progress to next floor
+      if (battle.status === 'victory' && isAbyssMode) {
+        handleNextFloorRef.current?.();
+        return;
+      }
+
+      // Only act on player turn and not animating
+      if (battle.status !== 'player_turn' || state.isAnimating) return;
+
+      // Pick best skill: highest damageMultiplier with cooldown=0 and sufficient MP
+      const playerMp = battle.player.currentMp;
+      const skillStates = state.skillStates;
+      const charId = saveData?.characterId;
+      const availableSkills = SKILLS
+        .filter((s) => (s.characterId === charId || s.characterId === 'common') && s.type !== 'passive')
+        .filter((s) => {
+          const ss = skillStates.find((st) => st.skillId === s.id);
+          const onCooldown = ss ? ss.currentCooldown > 0 : false;
+          return !onCooldown && s.manaCost <= playerMp;
+        });
+
+      let chosenSkillId: string;
+      if (availableSkills.length > 0) {
+        // Sort by damageMultiplier descending, pick the best
+        availableSkills.sort((a, b) => b.damageMultiplier - a.damageMultiplier);
+        chosenSkillId = availableSkills[0].id;
+      } else {
+        chosenSkillId = 'common_basic_attack';
+      }
+
+      handleSkillSelectRef.current?.(chosenSkillId);
+    }, 500);
+
+    return () => {
+      if (autoIntervalRef.current) {
+        clearInterval(autoIntervalRef.current);
+        autoIntervalRef.current = null;
+      }
+    };
+  }, [autoBattle, isAbyssMode, saveData?.characterId]);
+
+  // Keyboard shortcut: 'a' toggles auto-battle
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'a' || e.key === 'A') {
+        // Ignore if user is typing in an input
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        setAutoBattle((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const logTypeColor: Record<string, string> = {
     damage: 'text-dungeon-health',
     heal: 'text-dungeon-xp',
@@ -234,25 +317,36 @@ function BattleScreen() {
   return (
     <div className="max-w-4xl mx-auto p-4 min-h-screen flex flex-col">
       {/* Turn indicator */}
-      <div className="text-center mb-2">
+      <div className="text-center mb-2 flex items-center justify-center gap-3">
         {isAbyssMode && abyssFloor !== null && (
-          <span className="text-sm font-bold text-purple-400 mr-3">
+          <span className="text-sm font-bold text-purple-400">
             심연 {abyssFloor}층 {abyssFloor > 0 && abyssFloor % 10 === 0 ? '(BOSS)' : ''}
           </span>
         )}
         {!isAbyssMode && (
-          <span className="text-xs text-gray-400 mr-2">
+          <span className="text-xs text-gray-400">
             웨이브 {(battleState.log.filter((l) => l.type === 'system' && l.message.includes('웨이브')).length) + 1}/3
           </span>
         )}
         <span className="text-xs text-gray-500">턴 {battleState.turn}</span>
-        <span className="text-xs text-dungeon-accent ml-3">
+        <span className="text-xs text-dungeon-accent">
           {battleState.status === 'player_turn'
             ? '당신의 턴'
             : battleState.status === 'enemy_turn'
               ? '적의 턴'
               : ''}
         </span>
+        <button
+          type="button"
+          onClick={() => setAutoBattle((prev) => !prev)}
+          className={`px-3 py-1 text-xs font-bold rounded-lg border transition-colors ${
+            autoBattle
+              ? 'border-green-500 text-green-400 bg-green-900/30'
+              : 'border-dungeon-border text-gray-400 hover:border-gray-500'
+          }`}
+        >
+          자동 전투 {autoBattle ? 'ON' : 'OFF'}
+        </button>
       </div>
 
       {/* Error display */}

@@ -8,6 +8,7 @@ import gameRouter from './routes/game';
 import combatRouter from './routes/combat';
 import inventoryRouter from './routes/inventory';
 import shopRouter from './routes/shop';
+import dailyRouter from './routes/daily';
 
 // ────────────────────────────────────────────────────────────
 // App setup
@@ -50,6 +51,7 @@ app.use('/api/game', gameRouter);
 app.use('/api/combat', combatRouter);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/shop', shopRouter);
+app.use('/api/daily', dailyRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

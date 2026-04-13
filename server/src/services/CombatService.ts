@@ -21,6 +21,7 @@ const skillStateStore = new Map<string, SkillState[]>();
 const battleDungeonMap = new Map<string, string>();
 const battleCritMap = new Map<string, { critRate: number; critDamage: number }>();
 const battleSetActiveMap = new Map<string, SetBonus['active'][]>();
+const battleSkillLevelMap = new Map<string, Record<string, number>>();
 
 /** Calculate active set bonuses from equipped items */
 function calculateSetBonuses(equippedItemIds: string[]): { statMods: { atkPercent: number; defPercent: number; hpPercent: number; mpPercent: number; critRateFlat: number; critDmgPercent: number }; actives: SetBonus['active'][] } {
@@ -194,6 +195,7 @@ export function initBattle(
     critDamage: (character.baseStats.critDamage + equipCritDmg) * (1 + statMods.critDmgPercent / 100),
   });
   battleSetActiveMap.set(battleState.id, setActives);
+  battleSkillLevelMap.set(battleState.id, { ...(saveData.skillLevels ?? {}) });
   battleWaveMap.set(battleState.id, {
     current: waveIndex,
     total: dungeon.waves.length,
@@ -362,9 +364,11 @@ export function executePlayerAction(
     let damage = 0;
     let heal = 0;
 
-    // Damage (with buff effects)
+    // Damage (with buff effects + skill level bonus)
     if (skill.damageMultiplier > 0 && target.id !== 'player') {
-      damage = calculateDamage(getEffectiveAttack(player), getEffectiveDefense(target), skill.damageMultiplier, isCrit, baseCritDmg);
+      const skillLevel = battleSkillLevelMap.get(battleState.id)?.[skillId] ?? 0;
+      const effectiveMultiplier = skill.damageMultiplier * (1 + skillLevel * 0.05);
+      damage = calculateDamage(getEffectiveAttack(player), getEffectiveDefense(target), effectiveMultiplier, isCrit, baseCritDmg);
 
       // Set active: bonus_damage (추가 피해)
       const setActives = battleSetActiveMap.get(battleState.id) ?? [];
@@ -900,6 +904,7 @@ export function removeBattle(id: string): void {
   battleDungeonMap.delete(id);
   battleCritMap.delete(id);
   battleSetActiveMap.delete(id);
+  battleSkillLevelMap.delete(id);
   battleWaveMap.delete(id);
   abyssFloorMap.delete(id);
 }
@@ -1056,6 +1061,7 @@ export function initAbyssBattle(
     critDamage: (character.baseStats.critDamage + equipCritDmg) * (1 + statMods.critDmgPercent / 100),
   });
   battleSetActiveMap.set(battleState.id, setActives);
+  battleSkillLevelMap.set(battleState.id, { ...(saveData.skillLevels ?? {}) });
   abyssFloorMap.set(battleState.id, floor);
 
   return { battleState, skillStates, floor };

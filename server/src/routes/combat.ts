@@ -3,6 +3,7 @@ import { validate } from '../middleware/validate';
 import * as AuthService from '../services/AuthService';
 import * as CombatService from '../services/CombatService';
 import * as GameService from '../services/GameService';
+import * as AchievementService from '../services/AchievementService';
 import { MONSTERS, ITEMS, DUNGEONS } from '../../../shared/data';
 
 const router = Router();
@@ -47,8 +48,15 @@ function applyWaveRewards(saveCode: string, battleId: string, source?: string) {
     }
   }
 
-  // 도감 업데이트 + 전투 로그에 보상 표시
+  // Kill counting for achievements
   const battleState = CombatService.getBattle(battleId);
+  if (battleState) {
+    const deadEnemies = battleState.enemies.filter(e => !e.isAlive).length;
+    if (!saveData.totalKills) saveData.totalKills = 0;
+    saveData.totalKills += deadEnemies;
+  }
+
+  // 도감 업데이트 + 전투 로그에 보상 표시
   if (battleState) {
     for (const enemy of battleState.enemies) {
       const monsterData = MONSTERS.find((m) => m.id === enemy.monsterId);
@@ -77,6 +85,7 @@ function applyWaveRewards(saveCode: string, battleId: string, source?: string) {
     });
   }
 
+  AchievementService.checkAchievements(saveData);
   AuthService.saveProgress(saveCode, saveData);
   return { rewards, levelUp };
 }
@@ -348,6 +357,11 @@ router.post(
 
         if (endAfterPlayer === 'victory') {
           const saveData = AuthService.getSaveData(saveCode)!;
+          // Count abyss kills
+          const abyssDeadEnemies = battleState.enemies.filter(e => !e.isAlive).length;
+          if (!saveData.totalKills) saveData.totalKills = 0;
+          saveData.totalKills += abyssDeadEnemies;
+
           const rewards = CombatService.calculateAbyssRewards(battleId, saveData.characterId);
 
           // Advance floor
@@ -369,6 +383,7 @@ router.post(
                 saveData.dropHistory.push({ itemId: drop.itemId, source: abyssSource, date: new Date().toISOString() });
               }
             }
+            AchievementService.checkAchievements(saveData);
             AuthService.saveProgress(saveCode, saveData);
             CombatService.removeBattle(battleId);
 
@@ -411,6 +426,11 @@ router.post(
       // Check after enemy turn
       if (battleState.status === 'victory') {
         const saveData = AuthService.getSaveData(saveCode)!;
+        // Count abyss kills (after enemy turn victory)
+        const deadEnemies2 = battleState.enemies.filter(e => !e.isAlive).length;
+        if (!saveData.totalKills) saveData.totalKills = 0;
+        saveData.totalKills += deadEnemies2;
+
         const rewards = CombatService.calculateAbyssRewards(battleId, saveData.characterId);
 
         saveData.abyssFloor = floor + 1;
@@ -424,6 +444,7 @@ router.post(
           for (const drop of rewards.items) {
             GameService.addItemSmart(saveData, drop.itemId, drop.quantity);
           }
+          AchievementService.checkAchievements(saveData);
           AuthService.saveProgress(saveCode, saveData);
           CombatService.removeBattle(battleId);
 
