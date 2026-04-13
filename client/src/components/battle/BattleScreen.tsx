@@ -63,6 +63,7 @@ function BattleScreen() {
     isPlayerTurn,
     isVictory,
     isDefeat,
+    error: combatError,
     startBattle,
     startAbyssBattle,
     useSkill,
@@ -217,6 +218,18 @@ function BattleScreen() {
               ? '적의 턴'
               : ''}
         </span>
+      </div>
+
+      {/* Error display */}
+      {combatError && (
+        <div className="text-center text-red-400 text-xs mb-2 py-1 px-3 bg-red-900/20 rounded">
+          {combatError}
+        </div>
+      )}
+
+      {/* Debug info */}
+      <div className="text-center text-[9px] text-gray-600 mb-1">
+        status: {battleState.status} | animating: {String(isAnimating)} | target: {selectedTargetId ?? 'none'}
       </div>
 
       {/* Enemy area */}
