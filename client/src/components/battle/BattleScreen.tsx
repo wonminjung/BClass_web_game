@@ -66,7 +66,6 @@ function BattleScreen() {
     startAbyssBattle,
     useSkill,
     useAbyssSkill,
-    canUseSkill,
     getSkillStates,
     resetBattle,
     useBattleItem,
@@ -123,35 +122,36 @@ function BattleScreen() {
 
   const handleSkillSelect = useCallback(
     async (skillId: string) => {
-      if (!isPlayerTurn || isAnimating || !canUseSkill(skillId)) return;
+      // 기본 검증: 내 턴 + 애니메이션 중 아님
+      if (!battleState || battleState.status !== 'player_turn') return;
+      if (isAnimating) return;
 
       const skill = SKILLS.find((s) => s.id === skillId);
-      if (!skill) return;
+      if (!skill || skill.type === 'passive') return;
 
+      // 타겟 결정: 항상 살아있는 적 중에서 선택
       let targetId: string;
       if (skill.targetType === 'self' || skill.targetType === 'all_enemies' || skill.targetType === 'all_allies') {
-        targetId = battleState?.player.id ?? 'player';
+        targetId = 'player';
       } else {
-        // Use selected target, or auto-pick first alive enemy
-        const target = selectedTargetId
-          ? battleState?.enemies.find((e) => e.id === selectedTargetId && e.isAlive)
-          : null;
-        const fallback = battleState?.enemies.find((e) => e.isAlive);
-        targetId = target?.id ?? fallback?.id ?? '';
-        if (!targetId) return;
-        if (!target && fallback) setSelectedTargetId(fallback.id);
+        // 현재 선택된 타겟이 살아있으면 사용, 아니면 첫 살아있는 적
+        const aliveEnemies = battleState.enemies.filter((e) => e.isAlive);
+        const validTarget = aliveEnemies.find((e) => e.id === selectedTargetId);
+        const target = validTarget ?? aliveEnemies[0];
+        if (!target) return;
+        targetId = target.id;
+        if (targetId !== selectedTargetId) setSelectedTargetId(targetId);
       }
 
       const result = isAbyssMode
         ? await useAbyssSkill(skillId, targetId)
         : await useSkill(skillId, targetId);
 
-      // 승리 시 서버에서 반환한 saveData로 로컬 상태 동기화
       if (result?.saveData) {
         updateSaveData(result.saveData);
       }
     },
-    [isPlayerTurn, isAnimating, canUseSkill, selectedTargetId, useSkill, battleState, updateSaveData],
+    [battleState, isAnimating, selectedTargetId, useSkill, useAbyssSkill, isAbyssMode, updateSaveData],
   );
 
   const handleContinue = useCallback(() => {
