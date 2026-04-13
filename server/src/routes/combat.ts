@@ -51,7 +51,7 @@ function applyWaveRewards(saveCode: string, battleId: string, source?: string) {
   const battleState = CombatService.getBattle(battleId);
   if (battleState) {
     for (const enemy of battleState.enemies) {
-      const monsterData = MONSTERS.find((m) => enemy.name.startsWith(m.name));
+      const monsterData = MONSTERS.find((m) => m.id === enemy.monsterId);
       if (monsterData) {
         GameService.addBestiaryEntry(saveData, monsterData.id);
       }

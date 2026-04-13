@@ -87,8 +87,8 @@ export function useInventory() {
         if (res.data.saveData) {
           updateSaveData(res.data.saveData);
         }
-      } catch {
-        // Error handling left to UI
+      } catch (err) {
+        console.error('[useInventory] error:', err);
       }
     },
     [updateSaveData],
@@ -104,8 +104,8 @@ export function useInventory() {
         if (res.data.saveData) {
           updateSaveData(res.data.saveData);
         }
-      } catch {
-        // Error handling left to UI
+      } catch (err) {
+        console.error('[useInventory] error:', err);
       }
     },
     [updateSaveData],
@@ -118,8 +118,8 @@ export function useInventory() {
         if (res.data.saveData) {
           updateSaveData(res.data.saveData);
         }
-      } catch {
-        // Error handling left to UI
+      } catch (err) {
+        console.error('[useInventory] error:', err);
       }
     },
     [updateSaveData],
@@ -132,8 +132,8 @@ export function useInventory() {
         if (res.data.saveData) {
           updateSaveData(res.data.saveData);
         }
-      } catch {
-        // Error handling left to UI
+      } catch (err) {
+        console.error('[useInventory] error:', err);
       }
     },
     [updateSaveData],

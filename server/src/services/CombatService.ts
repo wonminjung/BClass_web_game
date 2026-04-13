@@ -101,6 +101,7 @@ export function initBattle(
       enemies.push({
         id: `enemy_${idx}`,
         name: `${monsterData.name}${entry.count > 1 ? ` ${String.fromCharCode(65 + i)}` : ''}`,
+        monsterId: monsterData.id,
         currentHp: monsterData.stats.maxHp,
         maxHp: monsterData.stats.maxHp,
         currentMp: 0,
@@ -439,7 +440,7 @@ export function executeEnemyTurn(battleState: BattleState): BattleResult[] {
     }
 
     // Find monster data
-    const monsterData = MONSTERS.find((m) => enemy.name.startsWith(m.name));
+    const monsterData = MONSTERS.find((m) => m.id === enemy.monsterId);
     if (!monsterData || monsterData.skills.length === 0) continue;
 
     // Weighted random skill
@@ -650,6 +651,7 @@ export function advanceWave(battleId: string): boolean {
       enemies.push({
         id: `enemy_${idx}`,
         name: `${monsterData.name}${entry.count > 1 ? ` ${String.fromCharCode(65 + i)}` : ''}`,
+        monsterId: monsterData.id,
         currentHp: monsterData.stats.maxHp,
         maxHp: monsterData.stats.maxHp,
         currentMp: 0,
@@ -760,7 +762,7 @@ export function calculateRewards(battleId: string, characterId: string): BattleR
 
   // Add per-monster rewards
   for (const enemy of battleState.enemies) {
-    const monsterData = MONSTERS.find((m) => enemy.name.startsWith(m.name));
+    const monsterData = MONSTERS.find((m) => m.id === enemy.monsterId);
     if (!monsterData) continue;
 
     totalExp += monsterData.expReward;
@@ -885,6 +887,7 @@ export function initAbyssBattle(
     enemies.push({
       id: 'enemy_0',
       name: `${bossData.name}`,
+      monsterId: bossData.id,
       currentHp: Math.floor(bossData.stats.maxHp * mult),
       maxHp: Math.floor(bossData.stats.maxHp * mult),
       currentMp: 0,
@@ -904,6 +907,7 @@ export function initAbyssBattle(
       enemies.push({
         id: `enemy_${i}`,
         name: `${mobData.name}${mobCount > 1 ? ` ${String.fromCharCode(65 + i)}` : ''}`,
+        monsterId: mobData.id,
         currentHp: Math.floor(mobData.stats.maxHp * mult),
         maxHp: Math.floor(mobData.stats.maxHp * mult),
         currentMp: 0,

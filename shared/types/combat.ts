@@ -11,6 +11,7 @@ export interface BattleState {
 export interface BattleFighter {
   id: string;
   name: string;
+  monsterId?: string;
   currentHp: number;
   maxHp: number;
   currentMp: number;

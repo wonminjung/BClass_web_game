@@ -21,7 +21,9 @@ app.use(helmet());
 // CORS - allow the Vite dev server and common origins
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'http://localhost:3333'],
+    origin: process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',')
+      : ['http://localhost:5173', 'http://localhost:3333'],
     credentials: true,
   }),
 );
