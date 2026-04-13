@@ -465,7 +465,11 @@ function ItemDetailModal({
             </Button>
           )}
           {item.sellPrice > 0 && item.type !== 'material' && (
-            <Button variant="danger" size="sm" onClick={() => { onSell(item.id); onClose(); }} className="flex-1">
+            <Button variant="danger" size="sm" onClick={() => {
+              if (window.confirm(`${item.name}을(를) ${item.sellPrice}G에 판매하시겠습니까?`)) {
+                onSell(item.id); onClose();
+              }
+            }} className="flex-1">
               판매 ({item.sellPrice}G)
             </Button>
           )}
