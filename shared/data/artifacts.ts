@@ -6,7 +6,7 @@ export interface Artifact {
   maxLevel: number;
   costPerLevel: (level: number) => number;
   effectPerLevel: number;
-  effectType: 'expPercent' | 'goldPercent' | 'dropRatePercent' | 'hpPercent' | 'mpPercent' | 'atkPercent' | 'defPercent' | 'gemPercent' | 'prestigeLevelKeep' | 'prestigeAbyssKeep' | 'autoHpThreshold' | 'battleSpeedBase';
+  effectType: 'expPercent' | 'goldPercent' | 'dropRatePercent' | 'hpPercent' | 'mpPercent' | 'atkPercent' | 'defPercent' | 'gemPercent' | 'prestigeLevelKeep' | 'prestigeAbyssKeep' | 'allPercent' | 'autoHpThreshold' | 'battleSpeedBase';
   effectUnit: string;
 }
 
@@ -63,5 +63,10 @@ export const ARTIFACTS: Artifact[] = [
     id: 'art_abyss_keep', name: '심연의 닻', description: '환생 후 심연 진행도 일부 유지 (최대 50%)',
     icon: '\u2693', maxLevel: 20, costPerLevel: linear(40), effectPerLevel: 2.5,
     effectType: 'prestigeAbyssKeep', effectUnit: '%',
+  },
+  {
+    id: 'art_soul_flame', name: '영혼의 불꽃', description: '전체 스탯 +1% (무한 레벨)',
+    icon: '\uD83D\uDD25', maxLevel: 99999, costPerLevel: (level: number) => level * level * 50, effectPerLevel: 1,
+    effectType: 'allPercent', effectUnit: '%',
   },
 ];

@@ -232,10 +232,10 @@ function HomeScreen() {
       const lv = (saveData.artifacts ?? {})[art.id] ?? 0;
       if (lv <= 0) continue;
       const val = art.effectPerLevel * lv;
-      if (art.effectType === 'hpPercent') hp = Math.round(hp * (1 + val / 100));
-      if (art.effectType === 'mpPercent') mp = Math.round(mp * (1 + val / 100));
-      if (art.effectType === 'atkPercent') atk = Math.round(atk * (1 + val / 100));
-      if (art.effectType === 'defPercent') def = Math.round(def * (1 + val / 100));
+      if (art.effectType === 'hpPercent' || art.effectType === 'allPercent') hp = Math.round(hp * (1 + val / 100));
+      if (art.effectType === 'mpPercent' || art.effectType === 'allPercent') mp = Math.round(mp * (1 + val / 100));
+      if (art.effectType === 'atkPercent' || art.effectType === 'allPercent') atk = Math.round(atk * (1 + val / 100));
+      if (art.effectType === 'defPercent' || art.effectType === 'allPercent') def = Math.round(def * (1 + val / 100));
     }
 
     // Apply random option percent bonuses
