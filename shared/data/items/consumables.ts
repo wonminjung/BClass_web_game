@@ -19,4 +19,22 @@ export const CONSUMABLES: Item[] = [
     stackable: true, maxStack: 99, sellPrice: 15,
     useEffect: { type: 'heal_mp', value: 30 },
   },
+  {
+    id: 'hp_potion_large', name: '대형 체력 포션', description: 'HP를 300 회복한다.',
+    type: 'consumable', rarity: 'rare', iconUrl: '/assets/items/hp_potion_large.svg',
+    stackable: true, maxStack: 99, sellPrice: 100,
+    useEffect: { type: 'heal_hp', value: 300 },
+  },
+  {
+    id: 'buff_potion_atk', name: '힘의 물약', description: '3턴간 공격력 20 증가.',
+    type: 'consumable', rarity: 'uncommon', iconUrl: '/assets/items/buff_potion_atk.svg',
+    stackable: true, maxStack: 99, sellPrice: 80,
+    useEffect: { type: 'buff_attack', value: 20, duration: 3 },
+  },
+  {
+    id: 'buff_potion_def', name: '강철의 물약', description: '3턴간 방어력 20 증가.',
+    type: 'consumable', rarity: 'uncommon', iconUrl: '/assets/items/buff_potion_def.svg',
+    stackable: true, maxStack: 99, sellPrice: 80,
+    useEffect: { type: 'buff_defense', value: 20, duration: 3 },
+  },
 ];

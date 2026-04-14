@@ -809,13 +809,22 @@ export function useItemInBattle(
     const before = player.currentMp;
     player.currentMp = Math.min(player.maxMp, player.currentMp + value);
     heal = player.currentMp - before;
+  } else if (type === 'buff_attack') {
+    player.statusEffects.push({ type: 'attack_up', remainingTurns: itemDef.useEffect.duration ?? 3, value });
+  } else if (type === 'buff_defense') {
+    player.statusEffects.push({ type: 'defense_up', remainingTurns: itemDef.useEffect.duration ?? 3, value });
   }
 
   // Log
+  const logMsg = type === 'heal_hp' ? `HP +${heal}`
+    : type === 'heal_mp' ? `MP +${heal}`
+    : type === 'buff_attack' ? `공격력 +${value} (${itemDef.useEffect.duration ?? 3}턴)`
+    : type === 'buff_defense' ? `방어력 +${value} (${itemDef.useEffect.duration ?? 3}턴)`
+    : '';
   const logEntry: BattleLogEntry = {
     turn: battleState.turn,
-    message: `${player.name}이(가) ${itemDef.name}을(를) 사용했다! (${type === 'heal_hp' ? 'HP' : 'MP'} +${heal})`,
-    type: 'heal',
+    message: `${player.name}이(가) ${itemDef.name}을(를) 사용했다! (${logMsg})`,
+    type: type.startsWith('buff_') ? 'buff' : 'heal',
   };
   battleState.log.push(logEntry);
 

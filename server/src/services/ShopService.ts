@@ -21,6 +21,9 @@ const POTION_SHOP: { itemId: string; price: number }[] = [
   { itemId: 'hp_potion_small', price: 25 },
   { itemId: 'hp_potion_medium', price: 80 },
   { itemId: 'mp_potion_small', price: 40 },
+  { itemId: 'hp_potion_large', price: 200 },
+  { itemId: 'buff_potion_atk', price: 150 },
+  { itemId: 'buff_potion_def', price: 150 },
 ];
 
 // ── Helpers ──

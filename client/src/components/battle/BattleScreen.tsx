@@ -11,6 +11,22 @@ import SkillBar from './SkillBar';
 import BattleResult from './BattleResult';
 import type { BattleFighter } from '@shared/types';
 
+const getMonsterEmoji = (name: string) => {
+  if (name.includes('구울') || name.includes('언데드')) return '\u{1F480}';
+  if (name.includes('거미')) return '\u{1F577}';
+  if (name.includes('기사') || name.includes('오크')) return '\u2694\uFE0F';
+  if (name.includes('악마') || name.includes('에레다르') || name.includes('파멸')) return '\u{1F47F}';
+  if (name.includes('용') || name.includes('드레이크') || name.includes('비룡')) return '\u{1F409}';
+  if (name.includes('리치') || name.includes('사제') || name.includes('흑마')) return '\u{1F9D9}';
+  if (name.includes('정령') || name.includes('거신')) return '\u{1F525}';
+  if (name.includes('히드라') || name.includes('늪')) return '\u{1F40D}';
+  if (name.includes('가고일')) return '\u{1F5FF}';
+  if (name.includes('군주') || name.includes('살게라스') || name.includes('아키몬드')) return '\u{1F608}';
+  if (name.includes('아서스') || name.includes('초갈')) return '\u{1F451}';
+  if (name.includes('발키르')) return '\u{1F47C}';
+  return '\u{1F480}';
+};
+
 const EnemyCard = React.memo(function EnemyCard({
   enemy,
   isSelected,
@@ -31,17 +47,17 @@ const EnemyCard = React.memo(function EnemyCard({
       type="button"
       onClick={handleClick}
       disabled={!enemy.isAlive}
-      className={`panel p-2 sm:p-3 transition-all duration-200 min-w-[100px] sm:min-w-[120px] ${
+      className={`panel p-2 sm:p-3 transition-all min-w-[100px] sm:min-w-[120px] ${
         !enemy.isAlive
-          ? 'opacity-30 cursor-not-allowed'
+          ? 'duration-500 scale-75 opacity-30 cursor-not-allowed'
           : isSelected
-            ? 'border-dungeon-health shadow-md shadow-dungeon-health/20'
-            : 'hover:border-dungeon-accent/50 cursor-pointer'
+            ? 'duration-200 border-dungeon-health shadow-md shadow-dungeon-health/20'
+            : 'duration-200 hover:border-dungeon-accent/50 cursor-pointer'
       } ${isFlashing ? 'animate-pulse bg-red-900/30' : ''}`}
     >
       <div className="w-14 h-14 mx-auto bg-dungeon-bg rounded-lg mb-2 flex items-center justify-center">
         <span className={`text-2xl ${enemy.isAlive ? 'text-dungeon-health' : 'text-gray-700'}`}>
-          &#128128;
+          {getMonsterEmoji(enemy.name)}
         </span>
       </div>
       <p className="text-xs font-bold text-center truncate mb-1">{enemy.name}</p>
@@ -89,6 +105,7 @@ function BattleScreen() {
   const [skillText, setSkillText] = useState<string | null>(null);
   const [autoBattle, setAutoBattle] = useState(false);
   const [battleSpeed, setBattleSpeed] = useState(1);
+  const [bossIntro, setBossIntro] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const autoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleSkillSelectRef = useRef<(skillId: string) => Promise<void>>();
@@ -118,6 +135,14 @@ function BattleScreen() {
       startBattle(dungeonId);
     }
   }, [dungeonId, isAbyssMode, isWeeklyBossMode, isAuthenticated, navigate, resetBattle, startBattle, startAbyssBattle, startWeeklyBossBattle]);
+
+  // Boss entrance overlay
+  useEffect(() => {
+    if (battleState && battleState.enemies.length === 1 && battleState.turn === 1) {
+      setBossIntro(true);
+      setTimeout(() => setBossIntro(false), 1500);
+    }
+  }, [battleState?.id]);
 
   // Auto-select first alive enemy
   useEffect(() => {
@@ -340,12 +365,12 @@ function BattleScreen() {
   }, []);
 
   const logTypeColor: Record<string, string> = {
-    damage: 'text-dungeon-health',
-    heal: 'text-dungeon-xp',
-    buff: 'text-dungeon-mana',
-    debuff: 'text-purple-400',
-    defeat: 'text-dungeon-gold',
-    system: 'text-gray-500',
+    damage: 'text-red-300',
+    heal: 'text-green-300',
+    buff: 'text-blue-300',
+    debuff: 'text-purple-300',
+    defeat: 'text-gray-500',
+    system: 'text-yellow-300 italic',
   };
 
   if (!battleState) {
@@ -356,8 +381,10 @@ function BattleScreen() {
     );
   }
 
+  const bgGradient = isAbyssMode ? 'from-purple-950/20' : isWeeklyBossMode ? 'from-red-950/20' : 'from-gray-950/10';
+
   return (
-    <div className="max-w-4xl mx-auto p-2 sm:p-4 min-h-screen flex flex-col">
+    <div className={`max-w-4xl mx-auto p-2 sm:p-4 min-h-screen flex flex-col bg-gradient-to-b ${bgGradient} to-transparent`}>
       {/* Turn indicator */}
       <div className="text-center mb-2 flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
         {isAbyssMode && abyssFloor !== null && (
@@ -430,12 +457,19 @@ function BattleScreen() {
         {battleLog.length === 0 && (
           <p className="text-gray-600 text-center">전투가 시작됩니다...</p>
         )}
-        {battleLog.map((entry, idx) => (
-          <p key={idx} className={logTypeColor[entry.type] ?? 'text-gray-400'}>
-            <span className="text-gray-600 text-xs mr-2">[{entry.turn}]</span>
-            {entry.message}
-          </p>
-        ))}
+        {battleLog.map((entry, idx) =>
+          entry.message.includes('치명타') ? (
+            <p key={idx} className="text-yellow-300 font-bold">
+              <span className="text-gray-600 text-xs mr-2">[{entry.turn}]</span>
+              &#x26A1; {entry.message}
+            </p>
+          ) : (
+            <p key={idx} className={logTypeColor[entry.type] ?? 'text-gray-400'}>
+              <span className="text-gray-600 text-xs mr-2">[{entry.turn}]</span>
+              {entry.message}
+            </p>
+          ),
+        )}
       </div>
 
       {/* Player stats */}
@@ -499,7 +533,7 @@ function BattleScreen() {
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-dungeon-panel border border-dungeon-border hover:border-green-500/50 transition-colors disabled:opacity-50"
               >
-                <span className="text-sm">{c.data?.useEffect?.type === 'heal_hp' ? '\u2764' : '\uD83D\uDCA7'}</span>
+                <span className="text-sm">{c.data?.useEffect?.type === 'heal_hp' ? '\u2764' : c.data?.useEffect?.type === 'heal_mp' ? '\uD83D\uDCA7' : c.data?.useEffect?.type === 'buff_attack' ? '\u2694\uFE0F' : c.data?.useEffect?.type === 'buff_defense' ? '\uD83D\uDEE1\uFE0F' : '\u2728'}</span>
                 <span className="text-xs text-gray-200">{c.data?.name}</span>
                 <span className="text-[10px] text-gray-500">x{c.slot.quantity}</span>
               </button>
@@ -507,6 +541,13 @@ function BattleScreen() {
           </div>
         );
       })()}
+
+      {/* Boss intro overlay */}
+      {bossIntro && (
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50 bg-black/40">
+          <span className="text-5xl font-black text-red-500 animate-pulse tracking-widest">BOSS</span>
+        </div>
+      )}
 
       {/* Skill name floating text */}
       {skillText && (
