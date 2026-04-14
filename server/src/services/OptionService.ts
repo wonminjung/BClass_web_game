@@ -38,7 +38,7 @@ function getOptionCount(rarity: string): number {
     case 'uncommon': return 2;
     case 'rare': return 2 + (Math.random() < 0.5 ? 1 : 0); // 2-3
     case 'epic': return 3;
-    case 'legendary': return 3 + (Math.random() < 0.5 ? 1 : 0); // 3-4
+    case 'legendary': return 4;
     default: return 1;
   }
 }
