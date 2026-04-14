@@ -85,7 +85,7 @@ router.post(
 
       if (!saveData.skillLevels) saveData.skillLevels = {};
       const currentLevel = saveData.skillLevels[skillId] ?? 0;
-      const maxLevel = 20;
+      const maxLevel = 100;
 
       if (currentLevel >= maxLevel) {
         res.status(400).json({ success: false, message: '이미 최대 레벨입니다' });
@@ -147,6 +147,7 @@ router.post('/prestige', (req: Request, res: Response): void => {
     const gemBoostPercent = (arts['art_gem'] ?? 0) * 10;       // 10% per level
     const levelKeepPercent = Math.min(50, (arts['art_level_keep'] ?? 0) * 2.5); // 2.5% per level, cap 50%
     const abyssKeepPercent = Math.min(50, (arts['art_abyss_keep'] ?? 0) * 2.5); // 2.5% per level, cap 50%
+    const goldKeepPercent = Math.min(50, (arts['art_gold_keep'] ?? 0) * 2.5); // 2.5% per level, cap 50%
 
     // Calculate gem reward BEFORE resetting
     const currentLevel = saveData.level;
@@ -179,8 +180,11 @@ router.post('/prestige', (req: Request, res: Response): void => {
     }
     saveData.talentPoints = keptPremiumTalents;
     saveData.abyssFloor = keptAbyssFloor;
+    // Gold reset with keep percentage
+    const currentGold = saveData.gold;
+    saveData.gold = Math.floor(currentGold * goldKeepPercent / 100);
 
-    // Keep: inventory, equippedItems, enhanceLevels, achievements, bestiary, dropHistory, gold, gems, abyssHighest, artifacts
+    // Keep: inventory, equippedItems, enhanceLevels, achievements, bestiary, dropHistory, gems, abyssHighest, artifacts
 
     AuthService.saveProgress(saveCode, saveData);
 
@@ -188,6 +192,7 @@ router.post('/prestige', (req: Request, res: Response): void => {
     if (gemBoostPercent > 0) extraInfo.push(`젬 부스트 +${gemBoostPercent}%`);
     if (keptLevel > 1) extraInfo.push(`레벨 유지 Lv.${keptLevel}`);
     if (keptAbyssFloor > 0) extraInfo.push(`심연 유지 ${keptAbyssFloor}층`);
+    if (saveData.gold > 0) extraInfo.push(`골드 유지 ${saveData.gold.toLocaleString()}G (${goldKeepPercent}%)`);
 
     res.json({
       success: true,

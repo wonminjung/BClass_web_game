@@ -312,8 +312,9 @@ function HomeScreen() {
   const handlePrestige = useCallback(async () => {
     const arts = saveData?.artifacts ?? {};
     const gemBoost = (arts['art_gem'] ?? 0) * 10;
-    const levelKeep = (arts['art_level_keep'] ?? 0) * 5;
-    const abyssKeep = (arts['art_abyss_keep'] ?? 0) * 5;
+    const levelKeep = Math.min(50, (arts['art_level_keep'] ?? 0) * 2.5);
+    const abyssKeep = Math.min(50, (arts['art_abyss_keep'] ?? 0) * 2.5);
+    const goldKeep = Math.min(50, (arts['art_gold_keep'] ?? 0) * 2.5);
 
     const nextPrestige = (saveData?.prestigeLevel ?? 0) + 1;
     const baseGems = 50 * nextPrestige;
@@ -330,8 +331,9 @@ function HomeScreen() {
       `초기화:\n` +
       `- 레벨 ${saveData?.level} → ${keptLevel > 1 ? `Lv.${keptLevel} (${levelKeep}% 유지)` : '1'}\n` +
       `- 스킬 레벨, 특성 포인트\n` +
-      `- 심연 ${saveData?.abyssFloor}층 → ${keptAbyss > 0 ? `${keptAbyss}층 (${abyssKeep}% 유지)` : '0층'}\n\n` +
-      `유지: 장비, 강화, 업적, 골드, 젬, 유물\n\n` +
+      `- 심연 ${saveData?.abyssFloor}층 → ${keptAbyss > 0 ? `${keptAbyss}층 (${abyssKeep}% 유지)` : '0층'}\n` +
+      `- 골드 ${(saveData?.gold ?? 0).toLocaleString()}G → ${goldKeep > 0 ? `${Math.floor((saveData?.gold ?? 0) * goldKeep / 100).toLocaleString()}G (${goldKeep}% 유지)` : '0G'}\n\n` +
+      `유지: 장비, 강화, 업적, 젬, 유물\n\n` +
       `보상:\n` +
       `- 환생 Lv.${nextPrestige} (전 스탯 +${nextPrestige * 2}%)\n` +
       `- 젬 ${totalGems}개${gemBoost > 0 ? ` (부스트 +${gemBoost}%)` : ''}`
