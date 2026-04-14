@@ -1171,7 +1171,7 @@ function abyssMultiplier(floor: number): number {
 
 /** Abyss legendary drop rate: 0.1% + floor * 0.028% */
 function abyssDropRate(floor: number): number {
-  return 0.001 + floor * 0.00028;
+  return Math.min(0.5, 0.001 + floor * 0.00028); // cap at 50%
 }
 
 export function getAbyssFloor(battleId: string): number | undefined {
