@@ -1,5 +1,6 @@
 import type { SaveData, BestiaryEntry } from '../../../shared/types';
 import { ITEMS } from '../../../shared/data';
+import { generateOptions } from './OptionService';
 
 // ────────────────────────────────────────────────────────────
 // Experience & Level-Up
@@ -277,8 +278,15 @@ export function addItemSmart(
     return { success: true, enhanced: true };
   }
 
-  // Equipment, first copy: add to inventory normally
-  return addItem(saveData, itemId, quantity);
+  // Equipment, first copy: add to inventory normally and generate random options
+  const addResult = addItem(saveData, itemId, quantity);
+  if (addResult.success) {
+    if (!saveData.itemOptions) saveData.itemOptions = {};
+    if (!saveData.itemOptions[itemId]) {
+      saveData.itemOptions[itemId] = generateOptions(itemDef.rarity);
+    }
+  }
+  return addResult;
 }
 
 export interface EnhanceInfo {

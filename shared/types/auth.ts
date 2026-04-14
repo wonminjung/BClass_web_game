@@ -1,3 +1,5 @@
+import type { RandomOption } from './item';
+
 export interface SaveData {
   saveCode: string;
   playerName: string;
@@ -29,6 +31,7 @@ export interface SaveData {
   artifacts: Record<string, number>;  // artifactId → level
   ownedPets: string[];     // owned pet IDs
   activePet: string;       // equipped pet ID
+  itemOptions: Record<string, RandomOption[]>;  // itemId -> random options
   appearance: { color: string };
   createdAt: string;
   lastPlayedAt: string;

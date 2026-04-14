@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { validate } from '../middleware/validate';
 import * as AuthService from '../services/AuthService';
 import * as GameService from '../services/GameService';
+import { generateOptions, getRerollCost } from '../services/OptionService';
 import { ITEMS, GEMS } from '../../../shared/data';
 import type { ItemRarity } from '../../../shared/types/item';
 
@@ -379,6 +380,128 @@ router.post(
       res.json({ success: true, saveData });
     } catch (err) {
       console.error('[inventory/use-enhance-stone]', err);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  },
+);
+
+// ── POST /reroll ────────────────────────────────────────────
+router.post(
+  '/reroll',
+  validate([{ name: 'itemId', type: 'string', minLength: 1 }]),
+  (req: Request, res: Response): void => {
+    try {
+      const saveCode = extractSaveCode(req, res);
+      if (!saveCode) return;
+
+      const saveData = AuthService.getSaveData(saveCode);
+      if (!saveData) {
+        res.status(404).json({ success: false, message: 'Save data not found' });
+        return;
+      }
+
+      const { itemId } = req.body;
+      const itemDef = ITEMS.find((i) => i.id === itemId);
+      if (!itemDef) {
+        res.status(400).json({ success: false, message: 'Item not found' });
+        return;
+      }
+
+      // Check ownership (inventory or equipped)
+      const ownsInInventory = saveData.inventory.some((s) => s.itemId === itemId);
+      const ownsEquipped = Object.values(saveData.equippedItems).some((id) => id === itemId);
+      if (!ownsInInventory && !ownsEquipped) {
+        res.status(400).json({ success: false, message: '해당 아이템을 보유하고 있지 않습니다' });
+        return;
+      }
+
+      const cost = getRerollCost(itemDef.rarity);
+      if (saveData.gold < cost) {
+        res.status(400).json({ success: false, message: `골드가 부족합니다 (필요: ${cost.toLocaleString()}G)` });
+        return;
+      }
+
+      // Deduct gold and generate new options
+      saveData.gold -= cost;
+      if (!saveData.itemOptions) saveData.itemOptions = {};
+      saveData.itemOptions[itemId] = generateOptions(itemDef.rarity);
+
+      AuthService.saveProgress(saveCode, saveData);
+      res.json({ success: true, options: saveData.itemOptions[itemId], goldSpent: cost, saveData });
+    } catch (err) {
+      console.error('[inventory/reroll]', err);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  },
+);
+
+// ── POST /dismantle ─────────────────────────────────────────
+const ENHANCE_STONE_MAP: Record<string, string> = {
+  common: 'enhance_stone_common',
+  uncommon: 'enhance_stone_uncommon',
+  rare: 'enhance_stone_rare',
+  epic: 'enhance_stone_epic',
+  legendary: 'enhance_stone_legendary',
+};
+
+router.post(
+  '/dismantle',
+  validate([{ name: 'itemId', type: 'string', minLength: 1 }]),
+  (req: Request, res: Response): void => {
+    try {
+      const saveCode = extractSaveCode(req, res);
+      if (!saveCode) return;
+
+      const saveData = AuthService.getSaveData(saveCode);
+      if (!saveData) {
+        res.status(404).json({ success: false, message: 'Save data not found' });
+        return;
+      }
+
+      const { itemId } = req.body;
+      const itemDef = ITEMS.find((i) => i.id === itemId);
+      if (!itemDef) {
+        res.status(400).json({ success: false, message: 'Item not found' });
+        return;
+      }
+
+      // Must be in inventory (not equipped)
+      const invSlot = saveData.inventory.find((s) => s.itemId === itemId);
+      if (!invSlot || invSlot.quantity <= 0) {
+        res.status(400).json({ success: false, message: '인벤토리에 해당 아이템이 없습니다 (장착 해제 후 분해하세요)' });
+        return;
+      }
+
+      // Remove from inventory
+      const removeResult = GameService.removeItem(saveData, itemId, 1);
+      if (!removeResult.success) {
+        res.status(400).json({ success: false, message: removeResult.error });
+        return;
+      }
+
+      // Remove options
+      if (saveData.itemOptions) {
+        delete saveData.itemOptions[itemId];
+      }
+
+      // Remove enhance levels
+      if (saveData.enhanceLevels?.[itemId]) {
+        delete saveData.enhanceLevels[itemId];
+      }
+
+      // Remove socketed gems
+      if (saveData.socketedGems?.[itemId]) {
+        delete saveData.socketedGems[itemId];
+      }
+
+      // Add enhancement stone based on rarity
+      const stoneId = ENHANCE_STONE_MAP[itemDef.rarity] ?? 'enhance_stone_common';
+      GameService.addItem(saveData, stoneId, 1);
+
+      AuthService.saveProgress(saveCode, saveData);
+      res.json({ success: true, stoneId, saveData });
+    } catch (err) {
+      console.error('[inventory/dismantle]', err);
       res.status(500).json({ success: false, message: 'Internal server error' });
     }
   },

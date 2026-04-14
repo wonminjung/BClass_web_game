@@ -41,6 +41,43 @@ const battleArtifactMap = new Map<string, Record<string, number>>();
 const battleSkillLevelMap = new Map<string, Record<string, number>>();
 const battleTalentMap = new Map<string, TalentBonuses>();
 const battleTitleMap = new Map<string, string>(); // battleId → equipped title ID
+const battleRandomOptionMap = new Map<string, { goldPercent: number; expPercent: number; lifesteal: number; reflect: number; hpRegen: number }>();
+
+/** Calculate random option stat bonuses from equipped items */
+function calculateRandomOptionBonuses(saveData: SaveData): {
+  atkFlat: number; atkPercent: number; defFlat: number; hpFlat: number; hpPercent: number;
+  critRate: number; critDamage: number; speedFlat: number;
+  goldPercent: number; expPercent: number; lifesteal: number; reflect: number; hpRegen: number;
+} {
+  const result = {
+    atkFlat: 0, atkPercent: 0, defFlat: 0, hpFlat: 0, hpPercent: 0,
+    critRate: 0, critDamage: 0, speedFlat: 0,
+    goldPercent: 0, expPercent: 0, lifesteal: 0, reflect: 0, hpRegen: 0,
+  };
+  if (!saveData.itemOptions) return result;
+  for (const slotItemId of Object.values(saveData.equippedItems)) {
+    if (!slotItemId) continue;
+    const opts = saveData.itemOptions[slotItemId] ?? [];
+    for (const opt of opts) {
+      switch (opt.stat) {
+        case 'atk_flat': result.atkFlat += opt.value; break;
+        case 'atk_percent': result.atkPercent += opt.value; break;
+        case 'def_flat': result.defFlat += opt.value; break;
+        case 'hp_flat': result.hpFlat += opt.value; break;
+        case 'hp_percent': result.hpPercent += opt.value; break;
+        case 'crit_rate': result.critRate += opt.value; break;
+        case 'crit_damage': result.critDamage += opt.value; break;
+        case 'speed': result.speedFlat += opt.value; break;
+        case 'gold_percent': result.goldPercent += opt.value; break;
+        case 'exp_percent': result.expPercent += opt.value; break;
+        case 'lifesteal': result.lifesteal += opt.value; break;
+        case 'reflect': result.reflect += opt.value; break;
+        case 'hp_regen': result.hpRegen += opt.value; break;
+      }
+    }
+  }
+  return result;
+}
 
 /** Calculate active set bonuses from equipped items */
 function calculateSetBonuses(equippedItemIds: string[]): { statMods: { atkPercent: number; defPercent: number; hpPercent: number; mpPercent: number; critRateFlat: number; critDmgPercent: number }; actives: SetBonus['active'][] } {
@@ -135,6 +172,13 @@ export function initBattle(
     }
   }
 
+  // Random option bonuses (flat)
+  const randOpts = calculateRandomOptionBonuses(saveData);
+  equipAtk += randOpts.atkFlat;
+  equipDef += randOpts.defFlat;
+  equipHp += randOpts.hpFlat;
+  equipSpd += randOpts.speedFlat;
+
   // Set bonuses (% based)
   const equippedIds = Object.values(saveData.equippedItems).filter(Boolean) as string[];
   const { statMods, actives: setActives } = calculateSetBonuses(equippedIds);
@@ -196,6 +240,10 @@ export function initBattle(
   baseMp = Math.round(baseMp * (1 + (artBonuses.mpPercent ?? 0) / 100));
   baseAtk = Math.round(baseAtk * (1 + (artBonuses.atkPercent ?? 0) / 100));
   baseDef = Math.round(baseDef * (1 + (artBonuses.defPercent ?? 0) / 100));
+
+  // Random option percent bonuses
+  if (randOpts.atkPercent > 0) baseAtk = Math.round(baseAtk * (1 + randOpts.atkPercent / 100));
+  if (randOpts.hpPercent > 0) baseHp = Math.round(baseHp * (1 + randOpts.hpPercent / 100));
 
   const player: BattleFighter = {
     id: 'player',
@@ -284,6 +332,13 @@ export function initBattle(
   battleStore.set(battleState.id, battleState);
   skillStateStore.set(battleState.id, skillStates);
   battleDungeonMap.set(battleState.id, dungeonId);
+  // Add random option crit bonuses
+  equipCritRate += randOpts.critRate / 100;
+  equipCritDmg += randOpts.critDamage / 100;
+
+  battleStore.set(battleState.id, battleState);
+  skillStateStore.set(battleState.id, skillStates);
+  battleDungeonMap.set(battleState.id, dungeonId);
   battleCritMap.set(battleState.id, {
     critRate: character.baseStats.critRate + equipCritRate + statMods.critRateFlat + petCritRateBonus + talentMods.critRateFlat,
     critDamage: (character.baseStats.critDamage + equipCritDmg) * (1 + statMods.critDmgPercent / 100) * (1 + talentMods.critDmgPercent / 100),
@@ -294,6 +349,13 @@ export function initBattle(
   battleSkillLevelMap.set(battleState.id, { ...(saveData.skillLevels ?? {}) });
   battleTalentMap.set(battleState.id, talentMods);
   battleTitleMap.set(battleState.id, saveData.equippedTitle ?? '');
+  battleRandomOptionMap.set(battleState.id, {
+    goldPercent: randOpts.goldPercent,
+    expPercent: randOpts.expPercent,
+    lifesteal: randOpts.lifesteal,
+    reflect: randOpts.reflect,
+    hpRegen: randOpts.hpRegen,
+  });
   battleWaveMap.set(battleState.id, {
     current: waveIndex,
     total: dungeon.waves.length,
@@ -1061,6 +1123,13 @@ export function calculateRewards(battleId: string, characterId: string): BattleR
   if (artBonuses.expPercent) totalExp = Math.round(totalExp * (1 + artBonuses.expPercent / 100));
   if (artBonuses.goldPercent) totalGold = Math.round(totalGold * (1 + artBonuses.goldPercent / 100));
 
+  // Random option exp/gold bonus
+  const randOptBonus = battleRandomOptionMap.get(battleId);
+  if (randOptBonus) {
+    if (randOptBonus.expPercent > 0) totalExp = Math.round(totalExp * (1 + randOptBonus.expPercent / 100));
+    if (randOptBonus.goldPercent > 0) totalGold = Math.round(totalGold * (1 + randOptBonus.goldPercent / 100));
+  }
+
   return { exp: totalExp, gold: totalGold, items };
 }
 
@@ -1078,6 +1147,7 @@ export function removeBattle(id: string): void {
   battleSkillLevelMap.delete(id);
   battleTalentMap.delete(id);
   battleTitleMap.delete(id);
+  battleRandomOptionMap.delete(id);
   battleWaveMap.delete(id);
   abyssFloorMap.delete(id);
   weeklyBossMap.delete(id);
@@ -1154,6 +1224,15 @@ export function initAbyssBattle(
     }
   }
 
+  // Random option bonuses (flat) for abyss
+  const randOptsAbyss = calculateRandomOptionBonuses(saveData);
+  equipAtk += randOptsAbyss.atkFlat;
+  equipDef += randOptsAbyss.defFlat;
+  equipHp += randOptsAbyss.hpFlat;
+  equipSpd += randOptsAbyss.speedFlat;
+  equipCritRate += randOptsAbyss.critRate / 100;
+  equipCritDmg += randOptsAbyss.critDamage / 100;
+
   // Set bonuses
   const equippedIds = Object.values(saveData.equippedItems).filter(Boolean) as string[];
   const { statMods, actives: setActives } = calculateSetBonuses(equippedIds);
@@ -1208,6 +1287,10 @@ export function initAbyssBattle(
       }
     }
   }
+
+  // Random option percent bonuses (abyss)
+  if (randOptsAbyss.atkPercent > 0) baseAtk = Math.round(baseAtk * (1 + randOptsAbyss.atkPercent / 100));
+  if (randOptsAbyss.hpPercent > 0) baseHp = Math.round(baseHp * (1 + randOptsAbyss.hpPercent / 100));
 
   const player: BattleFighter = {
     id: 'player',
@@ -1300,6 +1383,13 @@ export function initAbyssBattle(
   battleSkillLevelMap.set(battleState.id, { ...(saveData.skillLevels ?? {}) });
   battleTalentMap.set(battleState.id, talentModsAbyss);
   battleTitleMap.set(battleState.id, saveData.equippedTitle ?? '');
+  battleRandomOptionMap.set(battleState.id, {
+    goldPercent: randOptsAbyss.goldPercent,
+    expPercent: randOptsAbyss.expPercent,
+    lifesteal: randOptsAbyss.lifesteal,
+    reflect: randOptsAbyss.reflect,
+    hpRegen: randOptsAbyss.hpRegen,
+  });
   abyssFloorMap.set(battleState.id, floor);
 
   return { battleState, skillStates, floor };
@@ -1402,6 +1492,13 @@ export function calculateAbyssRewards(battleId: string, characterId: string): Ba
     if (abyssArtBonuses.goldPercent) totalGold = Math.round(totalGold * (1 + abyssArtBonuses.goldPercent / 100));
   }
 
+  // Random option exp/gold bonus for abyss
+  const randOptBonusAbyss = battleRandomOptionMap.get(battleId);
+  if (randOptBonusAbyss) {
+    if (randOptBonusAbyss.expPercent > 0) totalExp = Math.round(totalExp * (1 + randOptBonusAbyss.expPercent / 100));
+    if (randOptBonusAbyss.goldPercent > 0) totalGold = Math.round(totalGold * (1 + randOptBonusAbyss.goldPercent / 100));
+  }
+
   return { exp: totalExp, gold: totalGold, items };
 }
 
@@ -1500,6 +1597,15 @@ export function initWeeklyBossBattle(
     }
   }
 
+  // Random option bonuses (flat) for weekly boss
+  const randOptsWb = calculateRandomOptionBonuses(saveData);
+  equipAtk += randOptsWb.atkFlat;
+  equipDef += randOptsWb.defFlat;
+  equipHp += randOptsWb.hpFlat;
+  equipSpd += randOptsWb.speedFlat;
+  equipCritRate += randOptsWb.critRate / 100;
+  equipCritDmg += randOptsWb.critDamage / 100;
+
   // Set bonuses
   const equippedIds = Object.values(saveData.equippedItems).filter(Boolean) as string[];
   const { statMods, actives: setActives } = calculateSetBonuses(equippedIds);
@@ -1535,6 +1641,10 @@ export function initWeeklyBossBattle(
       }
     }
   }
+
+  // Random option percent bonuses (weekly boss)
+  if (randOptsWb.atkPercent > 0) baseAtk = Math.round(baseAtk * (1 + randOptsWb.atkPercent / 100));
+  if (randOptsWb.hpPercent > 0) baseHp = Math.round(baseHp * (1 + randOptsWb.hpPercent / 100));
 
   const player: BattleFighter = {
     id: 'player',
@@ -1600,6 +1710,13 @@ export function initWeeklyBossBattle(
   battleArtifactMap.set(battleState.id, getArtifactBonuses(saveData.artifacts));
   battleSkillLevelMap.set(battleState.id, { ...(saveData.skillLevels ?? {}) });
   weeklyBossMap.set(battleState.id, true);
+  battleRandomOptionMap.set(battleState.id, {
+    goldPercent: randOptsWb.goldPercent,
+    expPercent: randOptsWb.expPercent,
+    lifesteal: randOptsWb.lifesteal,
+    reflect: randOptsWb.reflect,
+    hpRegen: randOptsWb.hpRegen,
+  });
 
   return { battleState, skillStates };
 }

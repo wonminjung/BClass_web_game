@@ -133,6 +133,7 @@ export function createNewGame(
     artifacts: {},
     ownedPets: [],
     activePet: '',
+    itemOptions: {},
     appearance: { color: '#8B5CF6' },
     createdAt: now,
     lastPlayedAt: now,

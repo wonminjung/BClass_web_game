@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useInventory } from '@/hooks/useInventory';
 import type { ResolvedItem, EquippedSlotInfo } from '@/hooks/useInventory';
-import type { Item, ItemRarity } from '@shared/types';
+import type { Item, ItemRarity, RandomOption } from '@shared/types';
 import { ITEMS, SETS, CHARACTERS, GEMS, TITLES, PETS, ARTIFACTS } from '@shared/data';
 import axios from 'axios';
 import { toast, confirm } from '@/components/common/Toast';
@@ -105,6 +105,50 @@ function EnhanceBadge({ level, exp }: { level: number; exp?: number }) {
       +{level}
       {exp !== undefined && exp > 0 && <span className="text-[9px] text-gray-500 ml-0.5">({exp}/{nextCost})</span>}
     </span>
+  );
+}
+
+// ── Random option helpers ──
+
+const OPTION_LABELS: Record<string, string> = {
+  atk_flat: '공격력',
+  atk_percent: '공격력%',
+  def_flat: '방어력',
+  hp_flat: 'HP',
+  hp_percent: 'HP%',
+  crit_rate: '크리율%',
+  crit_damage: '크리뎀%',
+  gold_percent: '골드%',
+  exp_percent: '경험치%',
+  speed: '속도',
+  lifesteal: '흡혈%',
+  reflect: '반사%',
+  hp_regen: '턴HP회복%',
+};
+
+const REROLL_COSTS: Record<string, number> = {
+  common: 1000,
+  uncommon: 5000,
+  rare: 20000,
+  epic: 100000,
+  legendary: 500000,
+};
+
+function formatOption(opt: RandomOption): string {
+  const label = OPTION_LABELS[opt.stat] ?? opt.stat;
+  const isPercent = opt.stat.includes('percent') || opt.stat === 'crit_rate' || opt.stat === 'crit_damage' || opt.stat === 'lifesteal' || opt.stat === 'reflect' || opt.stat === 'hp_regen';
+  return `${label} +${isPercent ? opt.value.toFixed(1) + '%' : Math.round(opt.value)}`;
+}
+
+function RandomOptionsDisplay({ options }: { options: RandomOption[] }) {
+  if (!options || options.length === 0) return null;
+  return (
+    <div className="panel p-2 space-y-1">
+      <p className="text-xs font-bold text-yellow-400">랜덤 옵션</p>
+      {options.map((opt, i) => (
+        <p key={i} className="text-xs text-green-300">+ {formatOption(opt)}</p>
+      ))}
+    </div>
   );
 }
 
@@ -431,6 +475,8 @@ function EquippedDetailModal({
   playerGems,
   onSocket,
   onUnsocket,
+  itemOptions,
+  onReroll,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -442,6 +488,8 @@ function EquippedDetailModal({
   playerGems: number;
   onSocket: (itemId: string, gemId: string) => void;
   onUnsocket: (itemId: string, socketIndex: number) => void;
+  itemOptions: RandomOption[];
+  onReroll: (itemId: string) => void;
 }) {
   if (!slot?.data) return null;
 
@@ -450,6 +498,7 @@ function EquippedDetailModal({
   const enhanceCostGold = (RARITY_BASE[slot.data.rarity] ?? 1000) * target * target;
   const enhanceRate = target <= 5 ? 50 : Math.max(5, 50 - (target - 5) * 1.5);
   const canEnhance = slot.enhanceLevel < 99;
+  const rerollCost = REROLL_COSTS[slot.data.rarity] ?? 10000;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={slot.data.name}>
@@ -463,6 +512,23 @@ function EquippedDetailModal({
         </div>
         <p className="text-sm text-gray-300">{slot.data.description}</p>
         <ItemStatsDisplay item={slot.data} enhanceLevel={slot.enhanceLevel} />
+
+        {/* Random options */}
+        <RandomOptionsDisplay options={itemOptions} />
+        {itemOptions.length > 0 && (
+          <div className="panel p-2 text-center space-y-1">
+            <p className="text-xs text-gray-400">옵션 리롤</p>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={gold < rerollCost}
+              onClick={() => onReroll(slot.data!.id)}
+              className="w-full"
+            >
+              {gold < rerollCost ? 'Gold 부족' : `리롤 (${rerollCost.toLocaleString()}G)`}
+            </Button>
+          </div>
+        )}
 
         {/* Gem sockets */}
         <GemSocketSection
@@ -556,6 +622,9 @@ function ItemDetailModal({
   playerGems,
   onSocket,
   onUnsocket,
+  itemOptions,
+  onReroll,
+  onDismantle,
 }: {
   item: Item | null;
   enhanceLevel: number;
@@ -572,6 +641,9 @@ function ItemDetailModal({
   playerGems: number;
   onSocket: (itemId: string, gemId: string) => void;
   onUnsocket: (itemId: string, socketIndex: number) => void;
+  itemOptions: RandomOption[];
+  onReroll: (itemId: string) => void;
+  onDismantle: (itemId: string) => void;
 }) {
   if (!item) return null;
 
@@ -634,6 +706,23 @@ function ItemDetailModal({
           </p>
         )}
 
+        {/* Random options */}
+        {isEquipType && <RandomOptionsDisplay options={itemOptions} />}
+        {isEquipType && itemOptions.length > 0 && (
+          <div className="panel p-2 text-center space-y-1">
+            <p className="text-xs text-gray-400">옵션 리롤</p>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={gold < (REROLL_COSTS[item.rarity] ?? 10000)}
+              onClick={() => onReroll(item.id)}
+              className="w-full"
+            >
+              {gold < (REROLL_COSTS[item.rarity] ?? 10000) ? 'Gold 부족' : `리롤 (${(REROLL_COSTS[item.rarity] ?? 10000).toLocaleString()}G)`}
+            </Button>
+          </div>
+        )}
+
         {/* Gem sockets */}
         {isEquipType && (
           <GemSocketSection
@@ -678,6 +767,15 @@ function ItemDetailModal({
           {isEquipType && (
             <Button variant="primary" size="sm" onClick={() => { onEquip(item.id, equipSlot); onClose(); }} className="flex-1">
               장착하기
+            </Button>
+          )}
+          {isEquipType && (
+            <Button variant="danger" size="sm" onClick={async () => {
+              if (await confirm(`${item.name}을(를) 분해하시겠습니까? 강화석을 획득합니다.`)) {
+                onDismantle(item.id); onClose();
+              }
+            }} className="flex-1">
+              분해
             </Button>
           )}
           {item.sellPrice > 0 && item.type !== 'material' && (
@@ -830,6 +928,34 @@ function InventoryScreen() {
     [unequipItem],
   );
 
+  const handleReroll = useCallback(async (itemId: string) => {
+    try {
+      const ok = await confirm('랜덤 옵션을 리롤하시겠습니까? 기존 옵션이 사라집니다.');
+      if (!ok) return;
+      const res = await axios.post('/api/inventory/reroll', { itemId });
+      if (res.data.success) {
+        updateSaveData(res.data.saveData);
+        toast.success(`리롤 완료! (${res.data.goldSpent.toLocaleString()}G 소모)`);
+        setSelectedItem((prev) => prev ? { ...prev } : null);
+        setSelectedEquipSlot((prev) => prev ? { ...prev } : null);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || '리롤 실패');
+    }
+  }, [updateSaveData]);
+
+  const handleDismantle = useCallback(async (itemId: string) => {
+    try {
+      const res = await axios.post('/api/inventory/dismantle', { itemId });
+      if (res.data.success) {
+        updateSaveData(res.data.saveData);
+        toast.success('분해 완료! 강화석을 획득했습니다.');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || '분해 실패');
+    }
+  }, [updateSaveData]);
+
   return (
     <div className="max-w-4xl mx-auto p-4 min-h-screen">
       {/* Header */}
@@ -918,6 +1044,27 @@ function InventoryScreen() {
               totalSpd += (item.stats.speed ?? 0) * mult;
               totalCrit += (item.stats.critRate ?? 0) * mult;
               totalCritDmg += (item.stats.critDamage ?? 0) * mult;
+            }
+
+            // Add random option flat stats to totals
+            let randOptAtkPercent = 0, randOptHpPercent = 0;
+            let randOptGoldPct = 0, randOptExpPct = 0;
+            for (const id of equippedIds) {
+              const opts = saveData.itemOptions?.[id] ?? [];
+              for (const opt of opts) {
+                switch (opt.stat) {
+                  case 'atk_flat': totalAtk += opt.value; break;
+                  case 'atk_percent': randOptAtkPercent += opt.value; break;
+                  case 'def_flat': totalDef += opt.value; break;
+                  case 'hp_flat': totalHp += opt.value; break;
+                  case 'hp_percent': randOptHpPercent += opt.value; break;
+                  case 'speed': totalSpd += opt.value; break;
+                  case 'crit_rate': totalCrit += opt.value / 100; break;
+                  case 'crit_damage': totalCritDmg += opt.value / 100; break;
+                  case 'gold_percent': randOptGoldPct += opt.value; break;
+                  case 'exp_percent': randOptExpPct += opt.value; break;
+                }
+              }
             }
 
             // Add socketed gem stats to totals
@@ -1022,6 +1169,12 @@ function InventoryScreen() {
             }
             // talent gold bonus
             bonusGold += (tp['util_gold'] ?? 0) * 5;
+
+            // Random option percent bonuses
+            if (randOptAtkPercent > 0) totalAtk = Math.round(totalAtk * (1 + randOptAtkPercent / 100));
+            if (randOptHpPercent > 0) totalHp = Math.round(totalHp * (1 + randOptHpPercent / 100));
+            bonusGold += randOptGoldPct;
+            bonusExp += randOptExpPct;
 
             return (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1176,6 +1329,9 @@ function InventoryScreen() {
         playerGems={totalGems}
         onSocket={handleSocketGem}
         onUnsocket={handleUnsocketGem}
+        itemOptions={selectedItem ? (saveData?.itemOptions?.[selectedItem.data.id] ?? []) : []}
+        onReroll={handleReroll}
+        onDismantle={handleDismantle}
         onGoldEnhance={async (itemId) => {
           try {
             const res = await axios.post('/api/inventory/enhance-gold', { itemId });
@@ -1208,6 +1364,8 @@ function InventoryScreen() {
         playerGems={totalGems}
         onSocket={handleSocketGem}
         onUnsocket={handleUnsocketGem}
+        itemOptions={selectedEquipSlot?.data ? (saveData?.itemOptions?.[selectedEquipSlot.data.id] ?? []) : []}
+        onReroll={handleReroll}
         onGoldEnhance={async (itemId) => {
           try {
             const res = await axios.post('/api/inventory/enhance-gold', { itemId });
