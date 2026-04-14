@@ -218,28 +218,42 @@ router.post(
 
       // 웨이브 클리어 공통 처리: 보상 지급 + 다음 웨이브 or 던전 클리어
       function handleWaveClear() {
-        const isLast = CombatService.isLastWave(battleId);
-        const battleDungeonId = CombatService.getBattleDungeonId(battleId) ?? '';
-        const dungeonName = DUNGEONS.find((d) => d.id === battleDungeonId)?.name ?? battleDungeonId;
-        const { rewards, levelUp } = applyWaveRewards(saveCode, battleId, dungeonName);
+        try {
+          const isLast = CombatService.isLastWave(battleId);
+          const battleDungeonId = CombatService.getBattleDungeonId(battleId) ?? '';
+          const dungeonName = DUNGEONS.find((d) => d.id === battleDungeonId)?.name ?? battleDungeonId;
+          const { rewards, levelUp } = applyWaveRewards(saveCode, battleId, dungeonName);
 
-        if (!isLast) {
+          if (!isLast) {
+            CombatService.advanceWave(battleId);
+          } else {
+            battleState.status = 'victory';
+            CombatService.removeBattle(battleId);
+          }
+
+          const updatedSaveData = AuthService.getSaveData(saveCode);
+          res.json({
+            success: true,
+            battleState,
+            skillStates: CombatService.getSkillStates(battleId),
+            rewards,
+            levelUp,
+            saveData: updatedSaveData,
+            waveInfo: CombatService.getWaveInfo(battleId),
+          });
+        } catch (waveErr) {
+          console.error('[combat/action] handleWaveClear error:', waveErr);
+          // 에러 발생 시에도 battleState를 player_turn으로 복구
+          battleState.status = 'player_turn';
           CombatService.advanceWave(battleId);
-        } else {
-          battleState.status = 'victory';
-          CombatService.removeBattle(battleId);
+          res.json({
+            success: true,
+            battleState,
+            skillStates: CombatService.getSkillStates(battleId),
+            rewards: null, levelUp: null, saveData: null,
+            waveInfo: CombatService.getWaveInfo(battleId),
+          });
         }
-
-        const updatedSaveData = AuthService.getSaveData(saveCode);
-        res.json({
-          success: true,
-          battleState,
-          skillStates: CombatService.getSkillStates(battleId),
-          rewards,
-          levelUp,
-          saveData: updatedSaveData,
-          waveInfo: CombatService.getWaveInfo(battleId),
-        });
       }
 
       // 플레이어 액션 후 전투 종료 체크 (적 전멸)
@@ -285,6 +299,13 @@ router.post(
       });
     } catch (err) {
       console.error('[combat/action]', err);
+      // 에러 발생 시 battleState를 player_turn으로 복구 시도
+      try {
+        const bs = CombatService.getBattle(battleId);
+        if (bs && bs.status === 'enemy_turn') {
+          bs.status = 'player_turn';
+        }
+      } catch { /* ignore */ }
       res.status(500).json({ success: false, message: 'Internal server error' });
     }
   },
