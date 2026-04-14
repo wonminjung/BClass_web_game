@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <radialGradient id="mythGlow"><stop offset="0%" stop-color="#E11D48" stop-opacity="0.8"/><stop offset="100%" stop-color="#E11D48" stop-opacity="0"/></radialGradient>
+    <radialGradient id="orbGlow" cx="50%" cy="50%"><stop offset="0%" stop-color="#FFC0CB"/><stop offset="60%" stop-color="#E11D48"/><stop offset="100%" stop-color="#9F1239"/></radialGradient>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4A1010"/><stop offset="100%" stop-color="#7F1D1D"/></linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#mythGlow)" opacity="0.4"/>
+  <!-- Shield shape -->
+  <path d="M32,6 L52,18 L50,44 L32,56 L14,44 L12,18 Z" fill="url(#shield)" stroke="#9F1239" stroke-width="1.5"/>
+  <path d="M32,12 L46,22 L44,42 L32,50 L20,42 L18,22 Z" fill="none" stroke="#E11D48" stroke-width="0.8" opacity="0.6"/>
+  <!-- Central orb -->
+  <circle cx="32" cy="30" r="10" fill="url(#orbGlow)" opacity="0.9"/>
+  <circle cx="32" cy="30" r="6" fill="#FFD1DC" opacity="0.4"/>
+  <circle cx="32" cy="30" r="3" fill="#FFC0CB" opacity="0.7"/>
+  <!-- Energy swirl -->
+  <path d="M22,30 Q27,20 32,30 Q37,40 42,30" fill="none" stroke="#FFD1DC" stroke-width="1" opacity="0.5"/>
+  <path d="M32,20 Q42,25 32,30 Q22,35 32,40" fill="none" stroke="#E11D48" stroke-width="0.8" opacity="0.4"/>
+  <!-- Shimmer particles -->
+  <circle cx="12" cy="10" r="1.5" fill="#FFD1DC" opacity="0.9"><animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.8s" repeatCount="indefinite"/></circle>
+  <circle cx="52" cy="14" r="1" fill="#E11D48" opacity="0.8"><animate attributeName="opacity" values="0.8;0.1;0.8" dur="2.2s" repeatCount="indefinite"/></circle>
+  <circle cx="8" cy="50" r="1.2" fill="#FFC0CB" opacity="0.7"><animate attributeName="opacity" values="0.7;0.15;0.7" dur="1.5s" repeatCount="indefinite"/></circle>
+  <circle cx="54" cy="52" r="1" fill="#FFD1DC" opacity="0.8"><animate attributeName="opacity" values="0.5;0.9;0.5" dur="2s" repeatCount="indefinite"/></circle>
+  <circle cx="18" cy="6" r="0.8" fill="#E11D48" opacity="0.6"><animate attributeName="opacity" values="0.6;0.1;0.6" dur="2.5s" repeatCount="indefinite"/></circle>
+</svg>

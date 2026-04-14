@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <radialGradient id="mythGlow"><stop offset="0%" stop-color="#E11D48" stop-opacity="0.8"/><stop offset="100%" stop-color="#E11D48" stop-opacity="0"/></radialGradient>
+    <linearGradient id="armor" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7F1D1D"/><stop offset="50%" stop-color="#4A1010"/><stop offset="100%" stop-color="#7F1D1D"/></linearGradient>
+    <radialGradient id="crystal" cx="50%" cy="50%"><stop offset="0%" stop-color="#FFD1DC"/><stop offset="50%" stop-color="#E11D48"/><stop offset="100%" stop-color="#9F1239"/></radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#mythGlow)" opacity="0.4"/>
+  <!-- Armor body -->
+  <path d="M16,12 L48,12 Q52,14 52,20 L52,48 Q52,54 48,56 L16,56 Q12,54 12,48 L12,20 Q12,14 16,12Z" fill="url(#armor)" stroke="#9F1239" stroke-width="1.2"/>
+  <!-- Collar -->
+  <path d="M16,12 Q24,8 32,10 Q40,8 48,12 L44,18 Q38,14 32,16 Q26,14 20,18 Z" fill="#7F1D1D" stroke="#9F1239" stroke-width="0.8"/>
+  <!-- Ornate lines -->
+  <line x1="32" y1="16" x2="32" y2="52" stroke="#9F1239" stroke-width="0.8" opacity="0.6"/>
+  <path d="M18,24 L46,24" stroke="#9F1239" stroke-width="0.6" opacity="0.5"/>
+  <path d="M16,36 L48,36" stroke="#9F1239" stroke-width="0.6" opacity="0.5"/>
+  <!-- Plate segments -->
+  <path d="M14,24 L30,24 L30,36 L14,36Z" fill="#4A1010" stroke="#7F1D1D" stroke-width="0.6" opacity="0.6"/>
+  <path d="M34,24 L50,24 L50,36 L34,36Z" fill="#4A1010" stroke="#7F1D1D" stroke-width="0.6" opacity="0.6"/>
+  <!-- Central rose crystal -->
+  <polygon points="32,22 38,30 32,38 26,30" fill="url(#crystal)" stroke="#FFD1DC" stroke-width="0.8"/>
+  <polygon points="32,25 35,30 32,35 29,30" fill="#FFD1DC" opacity="0.4"/>
+  <circle cx="32" cy="30" r="2" fill="#FFC0CB" opacity="0.6"/>
+  <!-- Belt line -->
+  <rect x="14" y="44" width="36" height="4" rx="1" fill="#7F1D1D" stroke="#9F1239" stroke-width="0.6"/>
+  <circle cx="32" cy="46" r="2" fill="#E11D48" stroke="#FFD1DC" stroke-width="0.4"/>
+  <!-- Shimmer particles -->
+  <circle cx="8" cy="8" r="1.5" fill="#FFD1DC" opacity="0.9"><animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.8s" repeatCount="indefinite"/></circle>
+  <circle cx="56" cy="10" r="1" fill="#E11D48" opacity="0.8"><animate attributeName="opacity" values="0.8;0.1;0.8" dur="2.2s" repeatCount="indefinite"/></circle>
+  <circle cx="6" cy="56" r="1.2" fill="#FFC0CB" opacity="0.7"><animate attributeName="opacity" values="0.7;0.15;0.7" dur="1.5s" repeatCount="indefinite"/></circle>
+  <circle cx="58" cy="58" r="1" fill="#FFD1DC" opacity="0.8"><animate attributeName="opacity" values="0.5;0.9;0.5" dur="2s" repeatCount="indefinite"/></circle>
+  <circle cx="10" cy="4" r="0.8" fill="#E11D48" opacity="0.6"><animate attributeName="opacity" values="0.6;0.1;0.6" dur="2.5s" repeatCount="indefinite"/></circle>
+</svg>

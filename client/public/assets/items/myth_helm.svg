@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <radialGradient id="mythGlow"><stop offset="0%" stop-color="#E11D48" stop-opacity="0.8"/><stop offset="100%" stop-color="#E11D48" stop-opacity="0"/></radialGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7F1D1D"/><stop offset="50%" stop-color="#4A1010"/><stop offset="100%" stop-color="#7F1D1D"/></linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#mythGlow)" opacity="0.4"/>
+  <!-- Crown-helm base -->
+  <path d="M14,38 L14,24 Q14,14 32,10 Q50,14 50,24 L50,38 Q50,48 32,52 Q14,48 14,38Z" fill="url(#metal)" stroke="#9F1239" stroke-width="1.2"/>
+  <!-- Crown spikes -->
+  <polygon points="18,24 20,8 22,24" fill="#E11D48" stroke="#9F1239" stroke-width="0.8"/>
+  <polygon points="30,20 32,4 34,20" fill="#E11D48" stroke="#9F1239" stroke-width="0.8"/>
+  <polygon points="42,24 44,8 46,24" fill="#E11D48" stroke="#9F1239" stroke-width="0.8"/>
+  <!-- Face opening -->
+  <path d="M20,32 Q20,44 32,46 Q44,44 44,32" fill="#1A0505" stroke="#9F1239" stroke-width="0.8"/>
+  <!-- Gems on crown -->
+  <circle cx="21" cy="22" r="2.5" fill="#E11D48" stroke="#FFD1DC" stroke-width="0.6"/>
+  <circle cx="32" cy="18" r="3" fill="#E11D48" stroke="#FFD1DC" stroke-width="0.6"/>
+  <circle cx="43" cy="22" r="2.5" fill="#E11D48" stroke="#FFD1DC" stroke-width="0.6"/>
+  <circle cx="21" cy="22" r="1" fill="#FFD1DC" opacity="0.8"/>
+  <circle cx="32" cy="18" r="1.2" fill="#FFD1DC" opacity="0.8"/>
+  <circle cx="43" cy="22" r="1" fill="#FFD1DC" opacity="0.8"/>
+  <!-- Shimmer particles -->
+  <circle cx="10" cy="10" r="1.5" fill="#FFD1DC" opacity="0.9"><animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.8s" repeatCount="indefinite"/></circle>
+  <circle cx="54" cy="12" r="1" fill="#E11D48" opacity="0.8"><animate attributeName="opacity" values="0.8;0.1;0.8" dur="2.2s" repeatCount="indefinite"/></circle>
+  <circle cx="6" cy="52" r="1.2" fill="#FFC0CB" opacity="0.7"><animate attributeName="opacity" values="0.7;0.15;0.7" dur="1.5s" repeatCount="indefinite"/></circle>
+  <circle cx="56" cy="54" r="1" fill="#FFD1DC" opacity="0.8"><animate attributeName="opacity" values="0.5;0.9;0.5" dur="2s" repeatCount="indefinite"/></circle>
+  <circle cx="8" cy="4" r="0.8" fill="#E11D48" opacity="0.6"><animate attributeName="opacity" values="0.6;0.1;0.6" dur="2.5s" repeatCount="indefinite"/></circle>
+</svg>

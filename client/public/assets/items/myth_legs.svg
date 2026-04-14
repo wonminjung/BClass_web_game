@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <radialGradient id="mythGlow"><stop offset="0%" stop-color="#E11D48" stop-opacity="0.8"/><stop offset="100%" stop-color="#E11D48" stop-opacity="0"/></radialGradient>
+    <linearGradient id="armor" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7F1D1D"/><stop offset="50%" stop-color="#4A1010"/><stop offset="100%" stop-color="#7F1D1D"/></linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#mythGlow)" opacity="0.4"/>
+  <!-- Waist -->
+  <rect x="14" y="4" width="36" height="8" rx="2" fill="#7F1D1D" stroke="#9F1239" stroke-width="1"/>
+  <!-- Left leg -->
+  <path d="M16,12 L30,12 L28,58 Q28,62 24,62 L18,62 Q14,62 14,58Z" fill="url(#armor)" stroke="#9F1239" stroke-width="1.2"/>
+  <!-- Right leg -->
+  <path d="M34,12 L48,12 L50,58 Q50,62 46,62 L40,62 Q36,62 36,58Z" fill="url(#armor)" stroke="#9F1239" stroke-width="1.2"/>
+  <!-- Knee guards -->
+  <ellipse cx="22" cy="34" rx="6" ry="5" fill="#7F1D1D" stroke="#9F1239" stroke-width="0.8"/>
+  <ellipse cx="42" cy="34" rx="6" ry="5" fill="#7F1D1D" stroke="#9F1239" stroke-width="0.8"/>
+  <circle cx="22" cy="34" r="2" fill="#E11D48" stroke="#FFD1DC" stroke-width="0.4"/>
+  <circle cx="42" cy="34" r="2" fill="#E11D48" stroke="#FFD1DC" stroke-width="0.4"/>
+  <!-- Energy flow lines -->
+  <path d="M20,16 Q18,24 22,30" fill="none" stroke="#E11D48" stroke-width="0.8" opacity="0.6"/>
+  <path d="M24,38 Q20,46 22,56" fill="none" stroke="#E11D48" stroke-width="0.8" opacity="0.6"/>
+  <path d="M44,16 Q46,24 42,30" fill="none" stroke="#E11D48" stroke-width="0.8" opacity="0.6"/>
+  <path d="M40,38 Q44,46 42,56" fill="none" stroke="#E11D48" stroke-width="0.8" opacity="0.6"/>
+  <!-- Plate segments -->
+  <line x1="16" y1="22" x2="30" y2="22" stroke="#9F1239" stroke-width="0.6" opacity="0.5"/>
+  <line x1="16" y1="46" x2="28" y2="46" stroke="#9F1239" stroke-width="0.6" opacity="0.5"/>
+  <line x1="34" y1="22" x2="48" y2="22" stroke="#9F1239" stroke-width="0.6" opacity="0.5"/>
+  <line x1="36" y1="46" x2="50" y2="46" stroke="#9F1239" stroke-width="0.6" opacity="0.5"/>
+  <!-- Belt gem -->
+  <circle cx="32" cy="8" r="3" fill="#E11D48" stroke="#FFD1DC" stroke-width="0.6"/>
+  <circle cx="32" cy="8" r="1.2" fill="#FFD1DC" opacity="0.7"/>
+  <!-- Shimmer particles -->
+  <circle cx="6" cy="8" r="1.5" fill="#FFD1DC" opacity="0.9"><animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.8s" repeatCount="indefinite"/></circle>
+  <circle cx="58" cy="10" r="1" fill="#E11D48" opacity="0.8"><animate attributeName="opacity" values="0.8;0.1;0.8" dur="2.2s" repeatCount="indefinite"/></circle>
+  <circle cx="4" cy="54" r="1.2" fill="#FFC0CB" opacity="0.7"><animate attributeName="opacity" values="0.7;0.15;0.7" dur="1.5s" repeatCount="indefinite"/></circle>
+  <circle cx="60" cy="56" r="1" fill="#FFD1DC" opacity="0.8"><animate attributeName="opacity" values="0.5;0.9;0.5" dur="2s" repeatCount="indefinite"/></circle>
+  <circle cx="32" cy="62" r="0.8" fill="#E11D48" opacity="0.6"><animate attributeName="opacity" values="0.6;0.1;0.6" dur="2.5s" repeatCount="indefinite"/></circle>
+</svg>

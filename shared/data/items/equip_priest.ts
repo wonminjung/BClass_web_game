@@ -312,23 +312,4 @@ export const EQUIP_PRIEST: Item[] = [
     stats: { attack: 230, hp: 400, critRate: 0.2, critDamage: 0.5 }
   },
 
-  // --- Mythic (신화) ---
-  {
-    id: 'mythic_pr_velen_staff', name: '벨렌의 천상 지팡이', description: '예언자 벨렌이 아르거스 탈출 시 가져온 나루의 핵으로 만든 신성한 지팡이.',
-    type: 'weapon', rarity: 'mythic', iconUrl: '/assets/items/inv_staff_05.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'priest',
-    stats: { attack: 450, hp: 1200, mp: 600, critRate: 0.25 },
-  },
-  {
-    id: 'mythic_pr_light_vestment', name: '태초의 빛 법의', description: '빛의 창조주가 남긴 최초의 법의. 착용자는 죽음조차 거부할 수 있다.',
-    type: 'chest', rarity: 'mythic', iconUrl: '/assets/items/inv_chest_cloth_01.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'priest',
-    stats: { defense: 300, hp: 2500, mp: 500, attack: 100 },
-  },
-  {
-    id: 'mythic_pr_naaru_heart', name: '나루의 심장', description: '쉬는 나루에게서 떨어진 빛의 결정체. 신성한 에너지가 끝없이 흐른다.',
-    type: 'accessory', rarity: 'mythic', iconUrl: '/assets/items/inv_misc_chalice_01.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'priest',
-    stats: { attack: 350, hp: 800, mp: 400, critRate: 0.3, critDamage: 0.6 },
-  }
 ];

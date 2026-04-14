@@ -306,26 +306,6 @@ export const EQUIP_DARK_KNIGHT: Item[] = [
     stats: { attack: 310, critRate: 0.3, critDamage: 0.6 },
   },
 
-  // --- Mythic (신화) ---
-  {
-    id: 'mythic_dk_frostmourne', name: '서리한 - 리치왕의 검', description: '아서스의 영혼까지 삼켜버린 절대의 마검. 휘두를 때마다 죽음의 기운이 감돈다.',
-    type: 'weapon', rarity: 'mythic', iconUrl: '/assets/items/inv_sword_100.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'dark_knight',
-    stats: { attack: 500, hp: 1000, critRate: 0.3, critDamage: 0.8 },
-  },
-  {
-    id: 'mythic_dk_shadowmourne', name: '그림자한', description: '서리한의 그림자에서 태어난 또 하나의 마검. 영혼을 갈무리하여 힘을 얻는다.',
-    type: 'weapon', rarity: 'mythic', iconUrl: '/assets/items/inv_axe_100.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'dark_knight',
-    stats: { attack: 480, hp: 800, critRate: 0.25, critDamage: 1.0 },
-  },
-  {
-    id: 'mythic_dk_doomplate', name: '파멸의 판금갑옷', description: '살게라스의 용광로에서 주조된 판금 갑옷. 착용자의 생명력을 극한까지 끌어올린다.',
-    type: 'chest', rarity: 'mythic', iconUrl: '/assets/items/inv_chest_plate_01.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'dark_knight',
-    stats: { defense: 300, hp: 2000, attack: 100 },
-  },
-
   // --- 기존 일반 장비 (하위 호환) ---
   {
     id: 'iron_sword', name: '무쇠 검', description: '기본적인 철제 검.',

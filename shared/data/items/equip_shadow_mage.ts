@@ -312,23 +312,4 @@ export const EQUIP_SHADOW_MAGE: Item[] = [
     stats: { attack: 220, hp: 300, critRate: 0.2, critDamage: 0.5 }
   },
 
-  // --- Mythic (신화) ---
-  {
-    id: 'mythic_sm_sargeras_scepter', name: '살게라스의 지배 홀', description: '타락한 티탄 살게라스가 군단을 지휘할 때 사용한 홀. 차원 자체를 뒤틀 수 있다.',
-    type: 'weapon', rarity: 'mythic', iconUrl: '/assets/items/inv_staff_05.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'shadow_mage',
-    stats: { attack: 500, mp: 500, critRate: 0.3, critDamage: 0.8 },
-  },
-  {
-    id: 'mythic_sm_void_robe', name: '공허의 심연 로브', description: '공허 군주의 정수로 직조한 로브. 현실과 공허의 경계에서 존재한다.',
-    type: 'chest', rarity: 'mythic', iconUrl: '/assets/items/inv_chest_cloth_01.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'shadow_mage',
-    stats: { defense: 250, hp: 1500, mp: 800, attack: 150 },
-  },
-  {
-    id: 'mythic_sm_nzoth_eye', name: '느조스의 천리안', description: '고대 신 느조스의 눈에서 추출한 힘이 깃든 마법 장신구. 모든 것을 꿰뚫어 본다.',
-    type: 'accessory', rarity: 'mythic', iconUrl: '/assets/items/inv_misc_bone_skull_03.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'shadow_mage',
-    stats: { attack: 400, hp: 500, critRate: 0.35, critDamage: 1.0 },
-  }
 ];

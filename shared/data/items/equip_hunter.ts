@@ -312,23 +312,4 @@ export const EQUIP_HUNTER: Item[] = [
     stats: { attack: 150, defense: 150, hp: 500, critRate: 0.1, critDamage: 0.25 }
   },
 
-  // --- Mythic (신화) ---
-  {
-    id: 'mythic_hn_windrunner_bow', name: '실바나스의 파멸궁', description: '밤의 전사에서 밴시 여왕으로, 모든 것을 관통한 전설을 넘어선 활.',
-    type: 'weapon', rarity: 'mythic', iconUrl: '/assets/items/inv_weapon_bow_07.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'hunter',
-    stats: { attack: 500, speed: 30, critRate: 0.35, critDamage: 0.7 },
-  },
-  {
-    id: 'mythic_hn_wild_god_mail', name: '야생 신의 쇄갑', description: '세나리우스가 직접 축복한 원시의 갑옷. 자연의 힘이 착용자를 감싼다.',
-    type: 'chest', rarity: 'mythic', iconUrl: '/assets/items/inv_chest_mail_01.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'hunter',
-    stats: { defense: 280, hp: 1800, attack: 120, speed: 20 },
-  },
-  {
-    id: 'mythic_hn_thori_dal', name: '토리달 - 별들의 분노', description: '태양샘의 정수로 만들어진 궁극의 활. 화살 없이도 별빛을 발사한다.',
-    type: 'weapon', rarity: 'mythic', iconUrl: '/assets/items/inv_weapon_bow_09.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'hunter',
-    stats: { attack: 480, critRate: 0.4, critDamage: 0.9 },
-  }
 ];

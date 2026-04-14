@@ -312,23 +312,4 @@ export const EQUIP_ASSASSIN: Item[] = [
     stats: { defense: 140, hp: 200, attack: 200, critDamage: 0.3 }
   },
 
-  // --- Mythic (신화) ---
-  {
-    id: 'mythic_as_fangs_father', name: '아버지의 송곳니', description: '데스윙의 이빨로 벼린 쌍검. 그림자와 하나가 되어 적의 생명을 거둔다.',
-    type: 'weapon', rarity: 'mythic', iconUrl: '/assets/items/inv_weapon_shortblade_12.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'assassin',
-    stats: { attack: 500, speed: 40, critRate: 0.4, critDamage: 0.8 },
-  },
-  {
-    id: 'mythic_as_void_leather', name: '공허의 가죽 갑옷', description: '공허에서 잡은 짐승의 가죽으로 만든 갑옷. 그림자 속으로 완전히 사라질 수 있다.',
-    type: 'chest', rarity: 'mythic', iconUrl: '/assets/items/inv_chest_leather_05.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'assassin',
-    stats: { defense: 250, hp: 1500, speed: 30, critRate: 0.2 },
-  },
-  {
-    id: 'mythic_as_kingslayer', name: '왕 살해자의 단검', description: '수많은 왕의 피를 마신 저주받은 단검. 급소를 놓치지 않는다.',
-    type: 'weapon', rarity: 'mythic', iconUrl: '/assets/items/inv_weapon_shortblade_15.svg',
-    stackable: false, maxStack: 1, sellPrice: 200000, requiredClass: 'assassin',
-    stats: { attack: 480, critRate: 0.45, critDamage: 1.0 },
-  }
 ];
