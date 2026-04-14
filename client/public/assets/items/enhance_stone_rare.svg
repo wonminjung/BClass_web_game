@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="gr1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5DADE2"/>
+      <stop offset="50%" stop-color="#3498DB"/>
+      <stop offset="100%" stop-color="#2176AE"/>
+    </linearGradient>
+    <linearGradient id="gr2" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#7EC8F0"/>
+      <stop offset="100%" stop-color="#2480BB"/>
+    </linearGradient>
+    <filter id="rGlow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Shadow -->
+  <ellipse cx="32" cy="58" rx="14" ry="3" fill="#3498DB" opacity="0.25"/>
+  <!-- Outer glow -->
+  <polygon points="32,8 48,18 48,42 32,52 16,42 16,18" fill="#3498DB" opacity="0.1" filter="url(#rGlow)"/>
+  <!-- Hexagonal crystal -->
+  <polygon points="32,8 48,18 48,42 32,52 16,42 16,18" fill="url(#gr1)" stroke="#1A6FA0" stroke-width="1.5"/>
+  <!-- Inner facet -->
+  <polygon points="32,14 42,21 42,39 32,46 22,39 22,21" fill="url(#gr2)" opacity="0.6"/>
+  <!-- Light reflection -->
+  <polygon points="32,14 42,21 32,24 22,21" fill="white" opacity="0.25"/>
+  <!-- Edge highlights -->
+  <line x1="32" y1="8" x2="48" y2="18" stroke="white" stroke-width="0.6" opacity="0.4"/>
+  <line x1="32" y1="8" x2="16" y2="18" stroke="white" stroke-width="0.5" opacity="0.3"/>
+  <!-- Center glow -->
+  <circle cx="32" cy="30" r="5" fill="#7EC8F0" opacity="0.3" filter="url(#rGlow)"/>
+  <circle cx="32" cy="30" r="2.5" fill="white" opacity="0.2"/>
+</svg>

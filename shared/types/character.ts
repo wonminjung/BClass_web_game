@@ -36,4 +36,4 @@ export interface PlayerCharacter extends Character {
   equippedItems: Record<EquipSlot, string | null>;
 }
 
-export type EquipSlot = 'weapon' | 'shield' | 'helm' | 'shoulders' | 'chest' | 'gloves' | 'belt' | 'legs' | 'boots' | 'accessory';
+export type EquipSlot = 'weapon' | 'offhand' | 'helm' | 'shoulders' | 'chest' | 'gloves' | 'belt' | 'legs' | 'boots' | 'accessory';

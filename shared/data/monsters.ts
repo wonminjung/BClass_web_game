@@ -11,7 +11,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mg_bite', name: '썩은 이빨', damageMultiplier: 1.0, targetType: 'single', statusEffect: { type: 'poison', duration: 2, value: 5 }, weight: 60 },
       { id: 'mg_scratch', name: '할퀴기', damageMultiplier: 1.3, targetType: 'single', statusEffect: null, weight: 40 },
     ],
-    drops: [{ itemId: 'ghoul_fang', chance: 0.4 }, { itemId: 'hp_potion_small', chance: 0.3 }],
+    drops: [{ itemId: 'ghoul_fang', chance: 0.4 }, { itemId: 'hp_potion_small', chance: 0.3 }, { itemId: 'enhance_stone_common', chance: 0.3 }],
     expReward: 30, goldReward: { min: 10, max: 25 },
   },
   {
@@ -25,7 +25,7 @@ export const MONSTERS: Monster[] = [
       { id: 'ms_web', name: '거미줄 포박', damageMultiplier: 0.5, targetType: 'single', statusEffect: { type: 'stun', duration: 1, value: 0 }, weight: 30 },
       { id: 'ms_fang', name: '맹독 송곳니', damageMultiplier: 1.8, targetType: 'single', statusEffect: null, weight: 20 },
     ],
-    drops: [{ itemId: 'spider_silk', chance: 0.5 }, { itemId: 'venom_sac', chance: 0.2 }],
+    drops: [{ itemId: 'spider_silk', chance: 0.5 }, { itemId: 'venom_sac', chance: 0.2 }, { itemId: 'enhance_stone_common', chance: 0.3 }],
     expReward: 35, goldReward: { min: 12, max: 30 },
   },
   {
@@ -39,7 +39,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mk_shield', name: '유령 방패', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'defense_up', duration: 2, value: 20 }, weight: 30 },
       { id: 'mk_cleave', name: '원혼 강타', damageMultiplier: 1.1, targetType: 'all', statusEffect: null, weight: 20 },
     ],
-    drops: [{ itemId: 'cursed_steel', chance: 0.3 }, { itemId: 'knight_emblem', chance: 0.1 }],
+    drops: [{ itemId: 'cursed_steel', chance: 0.3 }, { itemId: 'knight_emblem', chance: 0.1 }, { itemId: 'enhance_stone_common', chance: 0.3 }],
     expReward: 60, goldReward: { min: 25, max: 50 },
   },
   {
@@ -53,7 +53,7 @@ export const MONSTERS: Monster[] = [
       { id: 'md_drain', name: '생명 흡수', damageMultiplier: 1.2, targetType: 'single', statusEffect: null, weight: 35 },
       { id: 'md_howl', name: '공포의 포효', damageMultiplier: 0.8, targetType: 'all', statusEffect: { type: 'attack_up', duration: 2, value: 15 }, weight: 25 },
     ],
-    drops: [{ itemId: 'demon_blood', chance: 0.35 }, { itemId: 'hp_potion_medium', chance: 0.25 }],
+    drops: [{ itemId: 'demon_blood', chance: 0.35 }, { itemId: 'hp_potion_medium', chance: 0.25 }, { itemId: 'enhance_stone_common', chance: 0.3 }],
     expReward: 90, goldReward: { min: 40, max: 80 },
   },
   {
@@ -68,7 +68,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mb_devour', name: '포식', damageMultiplier: 1.5, targetType: 'single', statusEffect: { type: 'stun', duration: 1, value: 0 }, weight: 20 },
       { id: 'mb_regen', name: '암흑 재생', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'regen', duration: 3, value: 5 }, weight: 20 },
     ],
-    drops: [{ itemId: 'abyss_core', chance: 0.15 }, { itemId: 'legendary_shard', chance: 0.05 }],
+    drops: [{ itemId: 'abyss_core', chance: 0.15 }, { itemId: 'legendary_shard', chance: 0.05 }, { itemId: 'enhance_stone_uncommon', chance: 0.5 }],
     expReward: 200, goldReward: { min: 100, max: 200 },
   },
 
@@ -84,7 +84,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mfe_fire_bolt', name: '화염탄', damageMultiplier: 1.1, targetType: 'single', statusEffect: null, weight: 35 },
       { id: 'mfe_ignite', name: '점화', damageMultiplier: 0.8, targetType: 'all', statusEffect: { type: 'burn', duration: 3, value: 6 }, weight: 20 },
     ],
-    drops: [{ itemId: 'cursed_steel', chance: 0.3 }, { itemId: 'hp_potion_small', chance: 0.25 }],
+    drops: [{ itemId: 'cursed_steel', chance: 0.3 }, { itemId: 'hp_potion_small', chance: 0.25 }, { itemId: 'enhance_stone_uncommon', chance: 0.25 }],
     expReward: 75, goldReward: { min: 30, max: 60 },
   },
   {
@@ -98,7 +98,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mdm_stun_blow', name: '기절 강타', damageMultiplier: 1.0, targetType: 'single', statusEffect: { type: 'stun', duration: 1, value: 0 }, weight: 30 },
       { id: 'mdm_iron_skin', name: '무쇠 피부', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'defense_up', duration: 2, value: 15 }, weight: 25 },
     ],
-    drops: [{ itemId: 'cursed_steel', chance: 0.35 }, { itemId: 'knight_emblem', chance: 0.1 }],
+    drops: [{ itemId: 'cursed_steel', chance: 0.35 }, { itemId: 'knight_emblem', chance: 0.1 }, { itemId: 'enhance_stone_uncommon', chance: 0.25 }],
     expReward: 70, goldReward: { min: 28, max: 55 },
   },
   {
@@ -113,7 +113,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mmo_molten_regen', name: '용암 재생', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'regen', duration: 3, value: 8 }, weight: 20 },
       { id: 'mmo_eruption', name: '분화', damageMultiplier: 1.2, targetType: 'all', statusEffect: { type: 'burn', duration: 2, value: 10 }, weight: 20 },
     ],
-    drops: [{ itemId: 'demon_blood', chance: 0.3 }, { itemId: 'abyss_core', chance: 0.1 }, { itemId: 'legendary_shard', chance: 0.03 }],
+    drops: [{ itemId: 'demon_blood', chance: 0.3 }, { itemId: 'abyss_core', chance: 0.1 }, { itemId: 'legendary_shard', chance: 0.03 }, { itemId: 'enhance_stone_rare', chance: 0.5 }],
     expReward: 250, goldReward: { min: 120, max: 240 },
   },
 
@@ -129,7 +129,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mbc_mire', name: '수렁 끌어당기기', damageMultiplier: 0.9, targetType: 'single', statusEffect: { type: 'defense_down', duration: 2, value: 12 }, weight: 35 },
       { id: 'mbc_sludge', name: '독 슬러지', damageMultiplier: 1.0, targetType: 'all', statusEffect: { type: 'poison', duration: 2, value: 7 }, weight: 25 },
     ],
-    drops: [{ itemId: 'venom_sac', chance: 0.4 }, { itemId: 'hp_potion_small', chance: 0.2 }],
+    drops: [{ itemId: 'venom_sac', chance: 0.4 }, { itemId: 'hp_potion_small', chance: 0.2 }, { itemId: 'enhance_stone_uncommon', chance: 0.25 }],
     expReward: 90, goldReward: { min: 35, max: 70 },
   },
   {
@@ -143,7 +143,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mns_siren_song', name: '세이렌의 노래', damageMultiplier: 0.7, targetType: 'single', statusEffect: { type: 'stun', duration: 1, value: 0 }, weight: 30 },
       { id: 'mns_tidal_wave', name: '해일', damageMultiplier: 1.1, targetType: 'all', statusEffect: null, weight: 35 },
     ],
-    drops: [{ itemId: 'spider_silk', chance: 0.3 }, { itemId: 'mp_potion_small', chance: 0.25 }],
+    drops: [{ itemId: 'spider_silk', chance: 0.3 }, { itemId: 'mp_potion_small', chance: 0.25 }, { itemId: 'enhance_stone_uncommon', chance: 0.25 }],
     expReward: 95, goldReward: { min: 38, max: 75 },
   },
   {
@@ -158,7 +158,7 @@ export const MONSTERS: Monster[] = [
       { id: 'msh_head_regen', name: '머리 재생', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'regen', duration: 3, value: 10 }, weight: 20 },
       { id: 'msh_constrict', name: '조이기', damageMultiplier: 1.8, targetType: 'single', statusEffect: { type: 'stun', duration: 1, value: 0 }, weight: 25 },
     ],
-    drops: [{ itemId: 'venom_sac', chance: 0.4 }, { itemId: 'abyss_core', chance: 0.12 }, { itemId: 'legendary_shard', chance: 0.04 }],
+    drops: [{ itemId: 'venom_sac', chance: 0.4 }, { itemId: 'abyss_core', chance: 0.12 }, { itemId: 'legendary_shard', chance: 0.04 }, { itemId: 'enhance_stone_rare', chance: 0.5 }],
     expReward: 320, goldReward: { min: 150, max: 300 },
   },
 
@@ -174,7 +174,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mtg_harden', name: '석화 강화', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'defense_up', duration: 3, value: 25 }, weight: 30 },
       { id: 'mtg_wing_gust', name: '날개 돌풍', damageMultiplier: 1.1, targetType: 'all', statusEffect: null, weight: 30 },
     ],
-    drops: [{ itemId: 'cursed_steel', chance: 0.35 }, { itemId: 'knight_emblem', chance: 0.15 }],
+    drops: [{ itemId: 'cursed_steel', chance: 0.35 }, { itemId: 'knight_emblem', chance: 0.15 }, { itemId: 'enhance_stone_uncommon', chance: 0.25 }],
     expReward: 110, goldReward: { min: 45, max: 90 },
   },
   {
@@ -188,7 +188,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mup_shadow_heal', name: '암흑 치유', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'regen', duration: 3, value: 8 }, weight: 30 },
       { id: 'mup_curse', name: '쇠약의 저주', damageMultiplier: 0.8, targetType: 'single', statusEffect: { type: 'defense_down', duration: 3, value: 15 }, weight: 35 },
     ],
-    drops: [{ itemId: 'ghoul_fang', chance: 0.3 }, { itemId: 'mp_potion_small', chance: 0.25 }],
+    drops: [{ itemId: 'ghoul_fang', chance: 0.3 }, { itemId: 'mp_potion_small', chance: 0.25 }, { itemId: 'enhance_stone_uncommon', chance: 0.25 }],
     expReward: 105, goldReward: { min: 42, max: 85 },
   },
   {
@@ -203,7 +203,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mfhp_curse_all', name: '대저주', damageMultiplier: 1.0, targetType: 'all', statusEffect: { type: 'defense_down', duration: 3, value: 18 }, weight: 25 },
       { id: 'mfhp_smite', name: '신벌', damageMultiplier: 2.0, targetType: 'single', statusEffect: null, weight: 25 },
     ],
-    drops: [{ itemId: 'knight_emblem', chance: 0.3 }, { itemId: 'abyss_core', chance: 0.15 }, { itemId: 'legendary_shard', chance: 0.05 }],
+    drops: [{ itemId: 'knight_emblem', chance: 0.3 }, { itemId: 'abyss_core', chance: 0.15 }, { itemId: 'legendary_shard', chance: 0.05 }, { itemId: 'enhance_stone_rare', chance: 0.5 }],
     expReward: 400, goldReward: { min: 180, max: 360 },
   },
 
@@ -219,7 +219,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mfw_ice_lance', name: '얼음 창', damageMultiplier: 1.6, targetType: 'single', statusEffect: null, weight: 35 },
       { id: 'mfw_blizzard', name: '눈보라', damageMultiplier: 1.0, targetType: 'all', statusEffect: { type: 'defense_down', duration: 2, value: 10 }, weight: 25 },
     ],
-    drops: [{ itemId: 'spider_silk', chance: 0.3 }, { itemId: 'hp_potion_medium', chance: 0.2 }],
+    drops: [{ itemId: 'spider_silk', chance: 0.3 }, { itemId: 'hp_potion_medium', chance: 0.2 }, { itemId: 'enhance_stone_rare', chance: 0.2 }],
     expReward: 130, goldReward: { min: 55, max: 110 },
   },
   {
@@ -233,7 +233,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mfc_avalanche', name: '눈사태', damageMultiplier: 1.2, targetType: 'all', statusEffect: { type: 'stun', duration: 1, value: 0 }, weight: 30 },
       { id: 'mfc_ice_armor', name: '빙갑', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'defense_up', duration: 3, value: 30 }, weight: 35 },
     ],
-    drops: [{ itemId: 'cursed_steel', chance: 0.35 }, { itemId: 'knight_emblem', chance: 0.15 }],
+    drops: [{ itemId: 'cursed_steel', chance: 0.35 }, { itemId: 'knight_emblem', chance: 0.15 }, { itemId: 'enhance_stone_rare', chance: 0.2 }],
     expReward: 140, goldReward: { min: 58, max: 115 },
   },
   {
@@ -248,7 +248,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mflk_icy_regen', name: '빙결 재생', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'regen', duration: 3, value: 15 }, weight: 25 },
       { id: 'mflk_frozen_throne', name: '왕좌의 한기', damageMultiplier: 1.5, targetType: 'all', statusEffect: { type: 'defense_down', duration: 2, value: 16 }, weight: 25 },
     ],
-    drops: [{ itemId: 'demon_blood', chance: 0.3 }, { itemId: 'abyss_core', chance: 0.18 }, { itemId: 'legendary_shard', chance: 0.06 }],
+    drops: [{ itemId: 'demon_blood', chance: 0.3 }, { itemId: 'abyss_core', chance: 0.18 }, { itemId: 'legendary_shard', chance: 0.06 }, { itemId: 'enhance_stone_epic', chance: 0.5 }],
     expReward: 500, goldReward: { min: 220, max: 440 },
   },
 
@@ -264,7 +264,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mbo_war_cry', name: '전투 함성', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'attack_up', duration: 3, value: 20 }, weight: 25 },
       { id: 'mbo_whirlwind', name: '선풍 베기', damageMultiplier: 1.2, targetType: 'all', statusEffect: { type: 'bleed', duration: 2, value: 10 }, weight: 35 },
     ],
-    drops: [{ itemId: 'cursed_steel', chance: 0.35 }, { itemId: 'demon_blood', chance: 0.2 }],
+    drops: [{ itemId: 'cursed_steel', chance: 0.35 }, { itemId: 'demon_blood', chance: 0.2 }, { itemId: 'enhance_stone_rare', chance: 0.2 }],
     expReward: 170, goldReward: { min: 70, max: 140 },
   },
   {
@@ -278,7 +278,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mdw_claw_rend', name: '발톱 찢기', damageMultiplier: 1.7, targetType: 'single', statusEffect: { type: 'bleed', duration: 2, value: 8 }, weight: 35 },
       { id: 'mdw_wing_buffet', name: '날개 타격', damageMultiplier: 1.2, targetType: 'single', statusEffect: null, weight: 30 },
     ],
-    drops: [{ itemId: 'demon_blood', chance: 0.35 }, { itemId: 'hp_potion_medium', chance: 0.2 }],
+    drops: [{ itemId: 'demon_blood', chance: 0.35 }, { itemId: 'hp_potion_medium', chance: 0.2 }, { itemId: 'enhance_stone_rare', chance: 0.2 }],
     expReward: 175, goldReward: { min: 72, max: 145 },
   },
   {
@@ -293,7 +293,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mbd_tail_sweep', name: '꼬리 휩쓸기', damageMultiplier: 2.2, targetType: 'single', statusEffect: { type: 'stun', duration: 1, value: 0 }, weight: 25 },
       { id: 'mbd_dragon_rage', name: '용의 분노', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'attack_up', duration: 3, value: 25 }, weight: 25 },
     ],
-    drops: [{ itemId: 'abyss_core', chance: 0.25 }, { itemId: 'legendary_shard', chance: 0.08 }, { itemId: 'demon_blood', chance: 0.3 }],
+    drops: [{ itemId: 'abyss_core', chance: 0.25 }, { itemId: 'legendary_shard', chance: 0.08 }, { itemId: 'demon_blood', chance: 0.3 }, { itemId: 'enhance_stone_epic', chance: 0.5 }],
     expReward: 650, goldReward: { min: 300, max: 600 },
   },
 
@@ -309,7 +309,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mtc_curse_weakness', name: '나약의 저주', damageMultiplier: 0.8, targetType: 'single', statusEffect: { type: 'defense_down', duration: 3, value: 18 }, weight: 30 },
       { id: 'mtc_shadow_nova', name: '암흑 폭발', damageMultiplier: 1.1, targetType: 'all', statusEffect: { type: 'burn', duration: 2, value: 10 }, weight: 35 },
     ],
-    drops: [{ itemId: 'demon_blood', chance: 0.3 }, { itemId: 'mp_potion_small', chance: 0.2 }],
+    drops: [{ itemId: 'demon_blood', chance: 0.3 }, { itemId: 'mp_potion_small', chance: 0.2 }, { itemId: 'enhance_stone_rare', chance: 0.2 }],
     expReward: 210, goldReward: { min: 90, max: 180 },
   },
   {
@@ -323,7 +323,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mtd_twilight_claw', name: '황혼의 발톱', damageMultiplier: 1.7, targetType: 'single', statusEffect: { type: 'bleed', duration: 2, value: 12 }, weight: 35 },
       { id: 'mtd_dive_bomb', name: '급강하 폭격', damageMultiplier: 1.9, targetType: 'single', statusEffect: null, weight: 30 },
     ],
-    drops: [{ itemId: 'demon_blood', chance: 0.35 }, { itemId: 'cursed_steel', chance: 0.25 }],
+    drops: [{ itemId: 'demon_blood', chance: 0.35 }, { itemId: 'cursed_steel', chance: 0.25 }, { itemId: 'enhance_stone_rare', chance: 0.2 }],
     expReward: 220, goldReward: { min: 95, max: 190 },
   },
   {
@@ -338,7 +338,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mcg_shadow_fury', name: '그림자 분노', damageMultiplier: 2.0, targetType: 'single', statusEffect: null, weight: 25 },
       { id: 'mcg_dual_cast', name: '이중 주문', damageMultiplier: 1.3, targetType: 'all', statusEffect: { type: 'defense_down', duration: 2, value: 20 }, weight: 25 },
     ],
-    drops: [{ itemId: 'abyss_core', chance: 0.3 }, { itemId: 'legendary_shard', chance: 0.1 }, { itemId: 'demon_blood', chance: 0.35 }],
+    drops: [{ itemId: 'abyss_core', chance: 0.3 }, { itemId: 'legendary_shard', chance: 0.1 }, { itemId: 'demon_blood', chance: 0.35 }, { itemId: 'enhance_stone_epic', chance: 0.5 }],
     expReward: 800, goldReward: { min: 380, max: 760 },
   },
 
@@ -354,7 +354,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mpl_stomp', name: '지진 밟기', damageMultiplier: 1.3, targetType: 'all', statusEffect: { type: 'stun', duration: 1, value: 0 }, weight: 30 },
       { id: 'mpl_demonic_aura', name: '악마의 기운', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'attack_up', duration: 3, value: 25 }, weight: 35 },
     ],
-    drops: [{ itemId: 'demon_blood', chance: 0.4 }, { itemId: 'abyss_core', chance: 0.15 }],
+    drops: [{ itemId: 'demon_blood', chance: 0.4 }, { itemId: 'abyss_core', chance: 0.15 }, { itemId: 'enhance_stone_epic', chance: 0.15 }],
     expReward: 260, goldReward: { min: 110, max: 220 },
   },
   {
@@ -369,7 +369,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mew_soul_drain', name: '영혼 흡수', damageMultiplier: 1.4, targetType: 'single', statusEffect: null, weight: 25 },
       { id: 'mew_hellfire', name: '지옥불', damageMultiplier: 1.1, targetType: 'all', statusEffect: { type: 'burn', duration: 2, value: 10 }, weight: 15 },
     ],
-    drops: [{ itemId: 'demon_blood', chance: 0.4 }, { itemId: 'mp_potion_small', chance: 0.2 }],
+    drops: [{ itemId: 'demon_blood', chance: 0.4 }, { itemId: 'mp_potion_small', chance: 0.2 }, { itemId: 'enhance_stone_epic', chance: 0.15 }],
     expReward: 270, goldReward: { min: 115, max: 230 },
   },
   {
@@ -384,7 +384,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mar_soul_charge', name: '영혼 충전', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'attack_up', duration: 3, value: 30 }, weight: 25 },
       { id: 'mar_finger_of_death', name: '죽음의 손가락', damageMultiplier: 2.5, targetType: 'single', statusEffect: null, weight: 25 },
     ],
-    drops: [{ itemId: 'abyss_core', chance: 0.35 }, { itemId: 'legendary_shard', chance: 0.12 }, { itemId: 'demon_blood', chance: 0.4 }],
+    drops: [{ itemId: 'abyss_core', chance: 0.35 }, { itemId: 'legendary_shard', chance: 0.12 }, { itemId: 'demon_blood', chance: 0.4 }, { itemId: 'enhance_stone_legendary', chance: 0.5 }],
     expReward: 1000, goldReward: { min: 480, max: 960 },
   },
 
@@ -401,7 +401,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mdk_death_coil', name: '죽음의 선고', damageMultiplier: 1.8, targetType: 'single', statusEffect: null, weight: 25 },
       { id: 'mdk_icy_fortitude', name: '빙결 인내', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'defense_up', duration: 2, value: 25 }, weight: 15 },
     ],
-    drops: [{ itemId: 'cursed_steel', chance: 0.35 }, { itemId: 'knight_emblem', chance: 0.2 }],
+    drops: [{ itemId: 'cursed_steel', chance: 0.35 }, { itemId: 'knight_emblem', chance: 0.2 }, { itemId: 'enhance_stone_epic', chance: 0.15 }],
     expReward: 320, goldReward: { min: 140, max: 280 },
   },
   {
@@ -416,7 +416,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mvk_holy_shadow', name: '성암 이중격', damageMultiplier: 1.4, targetType: 'all', statusEffect: { type: 'burn', duration: 2, value: 12 }, weight: 25 },
       { id: 'mvk_soul_reap', name: '영혼 수확', damageMultiplier: 1.9, targetType: 'single', statusEffect: { type: 'bleed', duration: 2, value: 12 }, weight: 20 },
     ],
-    drops: [{ itemId: 'knight_emblem', chance: 0.3 }, { itemId: 'hp_potion_medium', chance: 0.2 }],
+    drops: [{ itemId: 'knight_emblem', chance: 0.3 }, { itemId: 'hp_potion_medium', chance: 0.2 }, { itemId: 'enhance_stone_epic', chance: 0.15 }],
     expReward: 330, goldReward: { min: 145, max: 290 },
   },
   {
@@ -431,7 +431,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mlka_summon_undead', name: '언데드 소환', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'regen', duration: 4, value: 20 }, weight: 25 },
       { id: 'mlka_soul_reaper', name: '영혼 착취', damageMultiplier: 2.0, targetType: 'single', statusEffect: { type: 'defense_down', duration: 3, value: 25 }, weight: 25 },
     ],
-    drops: [{ itemId: 'abyss_core', chance: 0.4 }, { itemId: 'legendary_shard', chance: 0.15 }, { itemId: 'cursed_steel', chance: 0.35 }],
+    drops: [{ itemId: 'abyss_core', chance: 0.4 }, { itemId: 'legendary_shard', chance: 0.15 }, { itemId: 'cursed_steel', chance: 0.35 }, { itemId: 'enhance_stone_legendary', chance: 0.5 }],
     expReward: 1300, goldReward: { min: 600, max: 1200 },
   },
 
@@ -447,7 +447,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mfge_mortal_strike', name: '필살 일격', damageMultiplier: 2.2, targetType: 'single', statusEffect: null, weight: 30 },
       { id: 'mfge_war_stomp', name: '전쟁 발구르기', damageMultiplier: 1.3, targetType: 'all', statusEffect: { type: 'stun', duration: 1, value: 0 }, weight: 35 },
     ],
-    drops: [{ itemId: 'demon_blood', chance: 0.4 }, { itemId: 'abyss_core', chance: 0.2 }],
+    drops: [{ itemId: 'demon_blood', chance: 0.4 }, { itemId: 'abyss_core', chance: 0.2 }, { itemId: 'enhance_stone_legendary', chance: 0.1 }],
     expReward: 400, goldReward: { min: 180, max: 360 },
   },
   {
@@ -462,7 +462,7 @@ export const MONSTERS: Monster[] = [
       { id: 'mdg_cripple', name: '무력화', damageMultiplier: 1.0, targetType: 'single', statusEffect: { type: 'defense_down', duration: 3, value: 22 }, weight: 20 },
       { id: 'mdg_shadow_strike', name: '암흑 타격', damageMultiplier: 2.0, targetType: 'single', statusEffect: null, weight: 20 },
     ],
-    drops: [{ itemId: 'demon_blood', chance: 0.45 }, { itemId: 'abyss_core', chance: 0.2 }],
+    drops: [{ itemId: 'demon_blood', chance: 0.45 }, { itemId: 'abyss_core', chance: 0.2 }, { itemId: 'enhance_stone_legendary', chance: 0.1 }],
     expReward: 420, goldReward: { min: 190, max: 380 },
   },
   {
@@ -477,7 +477,7 @@ export const MONSTERS: Monster[] = [
       { id: 'msa_dark_titan_regen', name: '타락한 재생', damageMultiplier: 0, targetType: 'single', statusEffect: { type: 'regen', duration: 4, value: 30 }, weight: 20 },
       { id: 'msa_annihilate', name: '섬멸', damageMultiplier: 2.0, targetType: 'all', statusEffect: { type: 'bleed', duration: 3, value: 22 }, weight: 30 },
     ],
-    drops: [{ itemId: 'abyss_core', chance: 0.5 }, { itemId: 'legendary_shard', chance: 0.2 }, { itemId: 'demon_blood', chance: 0.5 }],
+    drops: [{ itemId: 'abyss_core', chance: 0.5 }, { itemId: 'legendary_shard', chance: 0.2 }, { itemId: 'demon_blood', chance: 0.5 }, { itemId: 'enhance_stone_legendary', chance: 0.5 }],
     expReward: 2000, goldReward: { min: 1000, max: 2000 },
   },
 ];

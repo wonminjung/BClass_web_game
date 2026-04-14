@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(ls /e/claude/BClass_web_game/client/public/assets/items/*.svg)",
+      "Bash(git add:*)",
+      "Bash(git reset:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)"
+    ]
+  }
+}

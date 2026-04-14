@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="gl1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F5C842"/>
+      <stop offset="50%" stop-color="#F39C12"/>
+      <stop offset="100%" stop-color="#D4800A"/>
+    </linearGradient>
+    <linearGradient id="gl2" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#FCE38A"/>
+      <stop offset="100%" stop-color="#E6890E"/>
+    </linearGradient>
+    <radialGradient id="glGlow" cx="0.5" cy="0.46" r="0.55">
+      <stop offset="0%" stop-color="#FCE38A" stop-opacity="0.6"/>
+      <stop offset="50%" stop-color="#F39C12" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#F39C12" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="lGlow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="lSoftGlow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Shadow -->
+  <ellipse cx="32" cy="58" rx="14" ry="3" fill="#F39C12" opacity="0.3"/>
+  <!-- Outer glow aura -->
+  <polygon points="32,4 52,16 52,44 32,56 12,44 12,16" fill="url(#glGlow)" filter="url(#lGlow)"/>
+  <!-- Hexagonal crystal -->
+  <polygon points="32,8 48,18 48,42 32,52 16,42 16,18" fill="url(#gl1)" stroke="#B87208" stroke-width="1.5"/>
+  <!-- Inner facet -->
+  <polygon points="32,14 42,21 42,39 32,46 22,39 22,21" fill="url(#gl2)" opacity="0.65"/>
+  <!-- Light reflection -->
+  <polygon points="32,14 42,21 32,24 22,21" fill="white" opacity="0.3"/>
+  <!-- Edge highlights -->
+  <line x1="32" y1="8" x2="48" y2="18" stroke="#FCE38A" stroke-width="0.8" opacity="0.6"/>
+  <line x1="32" y1="8" x2="16" y2="18" stroke="#FCE38A" stroke-width="0.6" opacity="0.4"/>
+  <!-- Center glow -->
+  <circle cx="32" cy="30" r="7" fill="#FCE38A" opacity="0.35" filter="url(#lSoftGlow)"/>
+  <circle cx="32" cy="30" r="3.5" fill="white" opacity="0.3"/>
+  <!-- Sparkle rays -->
+  <g filter="url(#lSoftGlow)" opacity="0.6">
+    <line x1="32" y1="20" x2="32" y2="15" stroke="#FCE38A" stroke-width="1.2"/>
+    <line x1="39" y1="25" x2="43" y2="22" stroke="#FCE38A" stroke-width="1"/>
+    <line x1="25" y1="25" x2="21" y2="22" stroke="#FCE38A" stroke-width="1"/>
+    <line x1="38" y1="35" x2="42" y2="38" stroke="#FCE38A" stroke-width="0.8"/>
+    <line x1="26" y1="35" x2="22" y2="38" stroke="#FCE38A" stroke-width="0.8"/>
+  </g>
+  <!-- Animated particles -->
+  <circle cx="20" cy="14" r="1.2" fill="#FCE38A" opacity="0.7">
+    <animate attributeName="cy" values="14;10;14" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.7;0.2;0.7" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="44" cy="12" r="1" fill="#F5C842" opacity="0.6">
+    <animate attributeName="cy" values="12;8;12" dur="2.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.6;0.1;0.6" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="12" cy="30" r="0.8" fill="#FCE38A" opacity="0.5">
+    <animate attributeName="cx" values="12;10;12" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.5;0.15;0.5" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="52" cy="28" r="0.9" fill="#F5C842" opacity="0.5">
+    <animate attributeName="cx" values="52;54;52" dur="2.8s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.5;0.1;0.5" dur="2.8s" repeatCount="indefinite"/>
+  </circle>
+</svg>

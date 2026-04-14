@@ -1,5 +1,6 @@
 import type { SaveData, BestiaryEntry } from '../../../shared/types';
 import { ITEMS } from '../../../shared/data';
+import { generateOptions } from './OptionService';
 
 // ────────────────────────────────────────────────────────────
 // Experience & Level-Up
@@ -139,7 +140,8 @@ export function useItem(saveData: SaveData, itemId: string): UseItemResult {
 
 const EQUIP_SLOT_MAP: Record<string, string[]> = {
   weapon: ['weapon'],
-  shield: ['shield'],
+  shield: ['offhand'],
+  offhand: ['offhand'],
   helm: ['helm'],
   shoulders: ['shoulders'],
   chest: ['chest'],
@@ -211,7 +213,7 @@ export function unequipItem(
 // Equipment Enhancement
 // ────────────────────────────────────────────────────────────
 
-const EQUIP_TYPES = new Set(['weapon', 'shield', 'helm', 'shoulders', 'chest', 'gloves', 'belt', 'legs', 'boots', 'accessory']);
+const EQUIP_TYPES = new Set(['weapon', 'shield', 'offhand', 'helm', 'shoulders', 'chest', 'gloves', 'belt', 'legs', 'boots', 'accessory']);
 const MAX_ENHANCE_LEVEL = 99;
 
 /**
@@ -252,32 +254,30 @@ export function addItemSmart(
     return addItem(saveData, itemId, quantity);
   }
 
-  // Equipment: check if already owned
+  // Equipment: check if already owned → auto-dismantle into enhancement stones
   if (ownsEquipment(saveData, itemId)) {
-    // Feed into enhancement
-    const entry = saveData.enhanceLevels[itemId] ?? { level: 0, exp: 0 };
-    entry.exp += quantity;
-
-    // Process level-ups
-    while (entry.level < MAX_ENHANCE_LEVEL) {
-      const cost = enhanceCost(entry.level + 1);
-      if (entry.exp < cost) break;
-      entry.exp -= cost;
-      entry.level += 1;
-    }
-
-    // Cap at max level
-    if (entry.level >= MAX_ENHANCE_LEVEL) {
-      entry.level = MAX_ENHANCE_LEVEL;
-      entry.exp = 0;
-    }
-
-    saveData.enhanceLevels[itemId] = entry;
-    return { success: true, enhanced: true };
+    const DISMANTLE_STONES: Record<string, string> = {
+      common: 'enhance_stone_common',
+      uncommon: 'enhance_stone_uncommon',
+      rare: 'enhance_stone_rare',
+      epic: 'enhance_stone_epic',
+      legendary: 'enhance_stone_legendary',
+      mythic: 'enhance_stone_legendary',
+    };
+    const stoneId = DISMANTLE_STONES[itemDef.rarity] ?? 'enhance_stone_common';
+    addItem(saveData, stoneId, quantity);
+    return { success: true, enhanced: false, dismantled: true };
   }
 
-  // Equipment, first copy: add to inventory normally
-  return addItem(saveData, itemId, quantity);
+  // Equipment, first copy: add to inventory normally and generate random options
+  const addResult = addItem(saveData, itemId, quantity);
+  if (addResult.success) {
+    if (!saveData.itemOptions) saveData.itemOptions = {};
+    if (!saveData.itemOptions[itemId]) {
+      saveData.itemOptions[itemId] = generateOptions(itemDef.rarity);
+    }
+  }
+  return addResult;
 }
 
 export interface EnhanceInfo {
@@ -295,6 +295,147 @@ export function getEnhanceInfo(saveData: SaveData, itemId: string): EnhanceInfo 
     exp: entry.exp,
     nextCost: entry.level < MAX_ENHANCE_LEVEL ? enhanceCost(entry.level + 1) : null,
     multiplier: enhanceMultiplier(entry.level),
+  };
+}
+
+// ────────────────────────────────────────────────────────────
+// Gold Enhancement
+// ────────────────────────────────────────────────────────────
+
+const RARITY_BASE_GOLD: Record<string, number> = {
+  common: 100,
+  uncommon: 500,
+  rare: 2000,
+  epic: 10000,
+  legendary: 50000,
+  mythic: 100000,
+};
+
+/** Gold cost for enhancing to targetLevel */
+export function goldEnhanceCost(rarity: string, targetLevel: number): number {
+  const base = RARITY_BASE_GOLD[rarity] ?? 1000;
+  return base * targetLevel * targetLevel;
+}
+
+/** Success rate for gold enhancement: max(5, 50 - (level-5)*1.5) */
+export function goldEnhanceSuccessRate(targetLevel: number): number {
+  if (targetLevel <= 5) return 50;
+  return Math.max(5, 50 - (targetLevel - 5) * 1.5);
+}
+
+export interface GoldEnhanceResult {
+  success: boolean;
+  enhanced: boolean;
+  goldSpent: number;
+  successRate: number;
+  error?: string;
+}
+
+export function enhanceWithGold(saveData: SaveData, itemId: string): GoldEnhanceResult {
+  const itemDef = ITEMS.find((i) => i.id === itemId);
+  if (!itemDef) return { success: false, enhanced: false, goldSpent: 0, successRate: 0, error: 'Item not found' };
+
+  if (!EQUIP_TYPES.has(itemDef.type)) {
+    return { success: false, enhanced: false, goldSpent: 0, successRate: 0, error: 'Equipment only' };
+  }
+
+  // Check ownership
+  if (!ownsEquipment(saveData, itemId)) {
+    return { success: false, enhanced: false, goldSpent: 0, successRate: 0, error: 'Item not owned' };
+  }
+
+  const entry = saveData.enhanceLevels[itemId] ?? { level: 0, exp: 0 };
+  if (entry.level >= MAX_ENHANCE_LEVEL) {
+    return { success: false, enhanced: false, goldSpent: 0, successRate: 0, error: 'Already max level' };
+  }
+
+  const targetLevel = entry.level + 1;
+  const cost = goldEnhanceCost(itemDef.rarity, targetLevel);
+  const rate = goldEnhanceSuccessRate(targetLevel);
+
+  if (saveData.gold < cost) {
+    return { success: false, enhanced: false, goldSpent: 0, successRate: rate, error: `Gold 부족 (필요: ${cost.toLocaleString()}G)` };
+  }
+
+  // Deduct gold
+  saveData.gold -= cost;
+
+  // Roll success
+  const roll = Math.random() * 100;
+  if (roll < rate) {
+    entry.level = targetLevel;
+    saveData.enhanceLevels[itemId] = entry;
+    return { success: true, enhanced: true, goldSpent: cost, successRate: rate };
+  }
+
+  // Failed — gold lost, level stays
+  saveData.enhanceLevels[itemId] = entry;
+  return { success: true, enhanced: false, goldSpent: cost, successRate: rate };
+}
+
+/** Get gold enhance info for UI */
+export function getGoldEnhanceInfo(saveData: SaveData, itemId: string): { cost: number; rate: number; currentLevel: number } | null {
+  const itemDef = ITEMS.find((i) => i.id === itemId);
+  if (!itemDef || !EQUIP_TYPES.has(itemDef.type)) return null;
+
+  const entry = saveData.enhanceLevels[itemId] ?? { level: 0, exp: 0 };
+  if (entry.level >= MAX_ENHANCE_LEVEL) return null;
+
+  const targetLevel = entry.level + 1;
+  return {
+    cost: goldEnhanceCost(itemDef.rarity, targetLevel),
+    rate: goldEnhanceSuccessRate(targetLevel),
+    currentLevel: entry.level,
+  };
+}
+
+// ────────────────────────────────────────────────────────────
+// Enhancement Stone Usage
+// ────────────────────────────────────────────────────────────
+
+const ENHANCE_STONE_EXP: Record<string, number> = {
+  'enhance_stone_common': 1,
+  'enhance_stone_uncommon': 3,
+  'enhance_stone_rare': 10,
+  'enhance_stone_epic': 30,
+  'enhance_stone_legendary': 100,
+};
+
+export function useEnhanceStone(saveData: SaveData, stoneId: string, targetItemId: string, quantity: number): { success: boolean; error?: string; beforeLevel?: number; afterLevel?: number; expAdded?: number; currentExp?: number; nextCost?: number } {
+  const expPerStone = ENHANCE_STONE_EXP[stoneId];
+  if (!expPerStone) return { success: false, error: 'Invalid enhancement stone' };
+
+  if (quantity <= 0) return { success: false, error: 'Quantity must be positive' };
+
+  const stoneSlot = saveData.inventory.find(s => s.itemId === stoneId);
+  if (!stoneSlot || stoneSlot.quantity < quantity) return { success: false, error: 'Not enough enhancement stones' };
+
+  if (!ownsEquipment(saveData, targetItemId)) return { success: false, error: 'Target item not owned' };
+
+  const removed = removeItem(saveData, stoneId, quantity);
+  if (!removed.success) return { success: false, error: removed.error };
+
+  if (!saveData.enhanceLevels) saveData.enhanceLevels = {};
+  const entry = saveData.enhanceLevels[targetItemId] ?? { level: 0, exp: 0 };
+  const beforeLevel = entry.level;
+  entry.exp += expPerStone * quantity;
+
+  while (entry.level < MAX_ENHANCE_LEVEL) {
+    const cost = enhanceCost(entry.level + 1);
+    if (entry.exp < cost) break;
+    entry.exp -= cost;
+    entry.level += 1;
+  }
+  if (entry.level >= MAX_ENHANCE_LEVEL) { entry.level = MAX_ENHANCE_LEVEL; entry.exp = 0; }
+
+  saveData.enhanceLevels[targetItemId] = entry;
+  return {
+    success: true,
+    beforeLevel,
+    afterLevel: entry.level,
+    expAdded: expPerStone * quantity,
+    currentExp: entry.exp,
+    nextCost: entry.level < MAX_ENHANCE_LEVEL ? enhanceCost(entry.level + 1) : undefined,
   };
 }
 

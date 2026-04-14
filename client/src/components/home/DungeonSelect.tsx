@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -86,6 +86,17 @@ function DungeonSelect() {
 
   const playerLevel = saveData?.level ?? 1;
 
+  const weeklyBossStatus = useMemo(() => {
+    const lastAttempt = saveData?.lastWeeklyBoss ?? '';
+    if (!lastAttempt) return { canChallenge: true, remainingDays: 0 };
+    const lastDate = new Date(lastAttempt);
+    const now = new Date();
+    const diffMs = now.getTime() - lastDate.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    if (diffDays >= 7) return { canChallenge: true, remainingDays: 0 };
+    return { canChallenge: false, remainingDays: Math.ceil(7 - diffDays) };
+  }, [saveData?.lastWeeklyBoss]);
+
   return (
     <div className="max-w-4xl mx-auto p-4 min-h-screen">
       <div className="flex items-center justify-between mb-6">
@@ -97,6 +108,43 @@ function DungeonSelect() {
           돌아가기
         </Button>
       </div>
+
+      {/* Weekly boss card */}
+      <Card
+        hover={weeklyBossStatus.canChallenge}
+        onClick={() => { if (weeklyBossStatus.canChallenge) navigate('/battle/weekly_boss'); }}
+        className={`relative overflow-hidden mb-6 border-2 border-red-500/50 ${!weeklyBossStatus.canChallenge ? 'opacity-60' : ''}`}
+      >
+        <div className="w-full h-36 bg-gradient-to-b from-red-900/40 via-yellow-900/20 to-dungeon-bg rounded-lg mb-3 flex flex-col items-center justify-center">
+          {!weeklyBossStatus.canChallenge ? (
+            <span className="text-4xl text-gray-500">&#9203;</span>
+          ) : (
+            <span className="text-5xl text-red-400">&#128293;</span>
+          )}
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-bold text-red-400">주간 보스</h3>
+            <p className="text-xs text-gray-500 mt-1">매주 한 번 도전 가능한 강력한 보스. 풍성한 보상!</p>
+          </div>
+          <div className="text-right">
+            {weeklyBossStatus.canChallenge ? (
+              <p className="text-sm text-green-400 font-bold">도전 가능!</p>
+            ) : (
+              <p className="text-sm text-gray-400">{weeklyBossStatus.remainingDays}일 후 재도전</p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center justify-between text-xs mt-2">
+          <span className="text-red-300">보스 스탯 3배</span>
+          <span className="text-yellow-400">50,000G / 30,000 EXP / 레전드리 장비 / 젬 10개</span>
+        </div>
+        {!weeklyBossStatus.canChallenge && (
+          <div className="absolute inset-0 bg-dungeon-bg/40 flex items-center justify-center">
+            <p className="text-sm text-gray-400 font-bold">{weeklyBossStatus.remainingDays}일 후 재도전 가능</p>
+          </div>
+        )}
+      </Card>
 
       {/* Abyss dungeon card */}
       <Card
@@ -134,7 +182,12 @@ function DungeonSelect() {
 
       <h2 className="text-lg font-bold text-gray-400 mb-3">일반 던전</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {[...dungeons].sort((a, b) => b.requiredLevel - a.requiredLevel).map((dungeon) => (
+        {[...dungeons].sort((a, b) => {
+          const aUnlocked = playerLevel >= a.requiredLevel ? 1 : 0;
+          const bUnlocked = playerLevel >= b.requiredLevel ? 1 : 0;
+          if (aUnlocked !== bUnlocked) return bUnlocked - aUnlocked;
+          return b.requiredLevel - a.requiredLevel;
+        }).map((dungeon) => (
           <DungeonCard
             key={dungeon.id}
             dungeon={dungeon}

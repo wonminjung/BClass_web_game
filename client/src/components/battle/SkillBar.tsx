@@ -65,10 +65,46 @@ const SkillButton = React.memo(function SkillButton({
       </span>
 
       {/* Cooldown overlay */}
-      {onCooldown && (
-        <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center">
-          <span className="text-xs text-dungeon-gold font-bold">
-            쿨타임: {state?.currentCooldown}턴
+      {onCooldown && (() => {
+        const current = state?.currentCooldown ?? 0;
+        const max = skill.cooldown > 0 ? skill.cooldown : current;
+        const progress = max > 0 ? ((max - current) / max) * 100 : 0;
+        const isAlmostReady = current === 1;
+
+        return (
+          <div className="absolute inset-0 bg-black/70 rounded-lg flex items-center justify-center">
+            <svg className="absolute inset-0 w-full h-full p-1" viewBox="0 0 36 36">
+              {/* Background circle track */}
+              <circle
+                cx="18" cy="18" r="15" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeOpacity="0.2"
+                className="text-gray-500"
+              />
+              {/* Progress circle */}
+              <circle
+                cx="18" cy="18" r="15" fill="none"
+                stroke="currentColor" strokeWidth="2.5"
+                strokeDasharray={`${progress * 0.942} 100`}
+                strokeLinecap="round"
+                className="text-dungeon-accent transform -rotate-90 origin-center transition-all duration-500"
+              />
+            </svg>
+            <span
+              className={`relative text-lg font-extrabold text-dungeon-gold drop-shadow-[0_0_6px_rgba(245,158,11,0.6)] ${
+                isAlmostReady ? 'animate-cooldown-ready' : ''
+              }`}
+            >
+              {current}
+            </span>
+          </div>
+        );
+      })()}
+
+      {/* Insufficient MP overlay */}
+      {!onCooldown && insufficientMp && skill.type !== 'passive' && (
+        <div className="absolute inset-0 bg-dungeon-mana/20 rounded-lg flex items-center justify-center backdrop-blur-[1px]">
+          <span className="text-[10px] font-bold text-dungeon-mana drop-shadow-[0_0_4px_rgba(59,130,246,0.5)]">
+            MP 부족
           </span>
         </div>
       )}

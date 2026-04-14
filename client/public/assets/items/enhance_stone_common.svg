@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="gc1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#C0C8D0"/>
+      <stop offset="50%" stop-color="#A8B0B8"/>
+      <stop offset="100%" stop-color="#808890"/>
+    </linearGradient>
+    <linearGradient id="gc2" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#D0D8E0"/>
+      <stop offset="100%" stop-color="#909AA0"/>
+    </linearGradient>
+  </defs>
+  <!-- Shadow -->
+  <ellipse cx="32" cy="58" rx="14" ry="3" fill="#A8B0B8" opacity="0.2"/>
+  <!-- Hexagonal crystal -->
+  <polygon points="32,8 48,18 48,42 32,52 16,42 16,18" fill="url(#gc1)" stroke="#808890" stroke-width="1.5"/>
+  <!-- Inner facet -->
+  <polygon points="32,14 42,21 42,39 32,46 22,39 22,21" fill="url(#gc2)" opacity="0.6"/>
+  <!-- Light reflection -->
+  <polygon points="32,14 42,21 32,24 22,21" fill="white" opacity="0.15"/>
+  <!-- Edge highlights -->
+  <line x1="32" y1="8" x2="48" y2="18" stroke="white" stroke-width="0.5" opacity="0.3"/>
+  <line x1="32" y1="8" x2="16" y2="18" stroke="white" stroke-width="0.5" opacity="0.2"/>
+  <!-- Center mark -->
+  <circle cx="32" cy="30" r="3" fill="#A8B0B8" opacity="0.4"/>
+</svg>

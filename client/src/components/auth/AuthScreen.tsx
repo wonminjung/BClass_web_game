@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import Button from '@/components/common/Button';
@@ -34,10 +34,13 @@ function AuthScreen() {
   }, [navigate]);
 
   // Redirect if already authenticated
-  if (isAuthenticated) {
-    navigate('/home', { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/home', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  if (isAuthenticated) return null;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4">

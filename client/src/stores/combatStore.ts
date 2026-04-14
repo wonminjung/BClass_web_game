@@ -27,8 +27,10 @@ interface CombatStoreState {
 
   startBattle: (dungeonId: string) => Promise<void>;
   startAbyssBattle: () => Promise<void>;
+  startWeeklyBossBattle: () => Promise<void>;
   useSkill: (skillId: string, targetId: string) => Promise<CombatActionResponse | null>;
   useAbyssSkill: (skillId: string, targetId: string) => Promise<CombatActionResponse | null>;
+  useWeeklyBossSkill: (skillId: string, targetId: string) => Promise<CombatActionResponse | null>;
   useBattleItem: (itemId: string) => Promise<CombatActionResponse | null>;
   resetBattle: () => void;
 }
@@ -156,6 +158,63 @@ export const useCombatStore = create<CombatStoreState>((set, get) => ({
           ? err.response.data.message
           : '전투를 시작할 수 없습니다.';
       set({ error: message });
+    }
+  },
+
+  startWeeklyBossBattle: async () => {
+    set({ error: null, rewards: null, levelUp: null, battleLog: [], isAbyss: false });
+    try {
+      const res = await axios.post<CombatActionResponse>('/api/combat/weekly-boss/start');
+      if (res.data.success) {
+        set({
+          battleState: res.data.battleState,
+          skillStates: res.data.skillStates ?? [],
+          battleLog: res.data.battleState.log ?? [],
+        });
+      } else {
+        set({ error: res.data.message ?? '주간 보스 전투를 시작할 수 없습니다.' });
+      }
+    } catch (err) {
+      const message =
+        axios.isAxiosError(err) && err.response?.data?.message
+          ? err.response.data.message
+          : '주간 보스 전투를 시작할 수 없습니다.';
+      set({ error: message });
+    }
+  },
+
+  useWeeklyBossSkill: async (skillId: string, targetId: string) => {
+    const current = get().battleState;
+    if (!current) return null;
+
+    set({ isAnimating: true, error: null });
+    try {
+      const res = await axios.post<CombatActionResponse>(
+        '/api/combat/weekly-boss/action',
+        { battleId: current.id, skillId, targetId },
+      );
+
+      if (res.data.success) {
+        set({
+          battleState: res.data.battleState,
+          skillStates: res.data.skillStates ?? [],
+          battleLog: res.data.battleState.log ?? [],
+          rewards: res.data.rewards ?? null,
+          levelUp: res.data.levelUp ?? null,
+          isAnimating: false,
+        });
+        return res.data;
+      } else {
+        set({ error: res.data.message ?? '행동을 수행할 수 없습니다.', isAnimating: false });
+        return null;
+      }
+    } catch (err) {
+      const message =
+        axios.isAxiosError(err) && err.response?.data?.message
+          ? err.response.data.message
+          : '행동을 수행할 수 없습니다.';
+      set({ error: message, isAnimating: false });
+      return null;
     }
   },
 

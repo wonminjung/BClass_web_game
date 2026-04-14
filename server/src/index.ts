@@ -8,6 +8,11 @@ import gameRouter from './routes/game';
 import combatRouter from './routes/combat';
 import inventoryRouter from './routes/inventory';
 import shopRouter from './routes/shop';
+import dailyRouter from './routes/daily';
+import craftRouter from './routes/craft';
+import petsRouter from './routes/pets';
+import rankingRouter from './routes/ranking';
+import gachaRouter from './routes/gacha';
 
 // ────────────────────────────────────────────────────────────
 // App setup
@@ -21,16 +26,18 @@ app.use(helmet());
 // CORS - allow the Vite dev server and common origins
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'http://localhost:3333'],
+    origin: process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',')
+      : ['http://localhost:5173', 'http://localhost:3333'],
     credentials: true,
   }),
 );
 
-// Rate limiting - 100 requests per minute per IP
+// Rate limiting - 600 requests per minute per IP
 app.use(
   rateLimit({
     windowMs: 60 * 1000,
-    max: 100,
+    max: 600,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Too many requests, please try again later' },
@@ -48,6 +55,11 @@ app.use('/api/game', gameRouter);
 app.use('/api/combat', combatRouter);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/shop', shopRouter);
+app.use('/api/daily', dailyRouter);
+app.use('/api/craft', craftRouter);
+app.use('/api/pets', petsRouter);
+app.use('/api/ranking', rankingRouter);
+app.use('/api/gacha', gachaRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

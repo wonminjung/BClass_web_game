@@ -22,8 +22,13 @@ export default {
         'skill-pulse': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'damage-float': 'damageFloat 1s ease-out forwards',
         'shake': 'shake 0.3s ease-in-out',
+        'cooldown-ready': 'cooldownReady 1.2s ease-in-out infinite',
       },
       keyframes: {
+        cooldownReady: {
+          '0%, 100%': { opacity: '0.7', transform: 'scale(1)' },
+          '50%': { opacity: '1', transform: 'scale(1.1)' },
+        },
         damageFloat: {
           '0%': { opacity: '1', transform: 'translateY(0)' },
           '100%': { opacity: '0', transform: 'translateY(-40px)' },

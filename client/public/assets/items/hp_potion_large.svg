@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Cork / stopper -->
+  <rect x="23" y="4" width="18" height="8" rx="2" fill="#8B6914" stroke="#5C4A0E" stroke-width="1.5"/>
+  <rect x="25" y="2" width="14" height="4" rx="1" fill="#A07828" stroke="#5C4A0E" stroke-width="1"/>
+  <rect x="27" y="3" width="4" height="2" rx="0.5" fill="#C49A3C" opacity="0.6"/>
+  <rect x="22" y="10" width="20" height="2" rx="1" fill="#6B5210" stroke="#4A3A0A" stroke-width="0.5"/>
+
+  <!-- Bottle body - larger, rounder shape -->
+  <path d="M26 12 L26 16 Q26 18 23 20 L17 26 Q14 30 14 34 L14 52 Q14 60 23 60 L41 60 Q50 60 50 52 L50 34 Q50 30 47 26 L41 20 Q38 18 38 16 L38 12 Z"
+        fill="#2A1030" stroke="#1A0820" stroke-width="1.5"/>
+
+  <!-- Glass tint -->
+  <path d="M26 12 L26 16 Q26 18 23 20 L17 26 Q14 30 14 34 L14 52 Q14 60 23 60 L41 60 Q50 60 50 52 L50 34 Q50 30 47 26 L41 20 Q38 18 38 16 L38 12 Z"
+        fill="rgba(60,15,15,0.25)" stroke="none"/>
+
+  <!-- Red liquid fill - generous amount -->
+  <path d="M15 30 L15 52 Q15 59 23.5 59 L40.5 59 Q49 59 49 52 L49 30 Q49 28 47 26 L42 21 Q40 19 39.5 17 L24.5 17 Q24 19 22 21 L17 26 Q15 28 15 30 Z"
+        fill="#C01525" opacity="0.9"/>
+
+  <!-- Liquid deep layer -->
+  <path d="M16 46 L16 52 Q16 58 24 58 L40 58 Q48 58 48 52 L48 46 Z"
+        fill="#8B0A18" opacity="0.5"/>
+
+  <!-- Liquid bubbles / highlights -->
+  <ellipse cx="27" cy="34" rx="6" ry="8" fill="#E83848" opacity="0.35"/>
+  <ellipse cx="39" cy="46" rx="4" ry="5" fill="#D02535" opacity="0.3"/>
+
+  <!-- Glass shine left -->
+  <path d="M18 28 L17 50 Q17 54 19 56" stroke="rgba(255,200,200,0.35)" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+  <!-- Sparkles -->
+  <circle cx="22" cy="32" r="1.5" fill="white" opacity="0.5"/>
+  <circle cx="37" cy="26" r="1" fill="white" opacity="0.35"/>
+  <circle cx="42" cy="40" r="0.8" fill="white" opacity="0.3"/>
+
+  <!-- Rare blue border glow -->
+  <path d="M26 12 L26 16 Q26 18 23 20 L17 26 Q14 30 14 34 L14 52 Q14 60 23 60 L41 60 Q50 60 50 52 L50 34 Q50 30 47 26 L41 20 Q38 18 38 16 L38 12 Z"
+        fill="none" stroke="#4488FF" stroke-width="1" opacity="0.5"/>
+
+  <!-- Label band on bottle -->
+  <rect x="16" y="44" width="32" height="7" rx="1" fill="#1A0808" opacity="0.3"/>
+  <!-- Cross symbol on label -->
+  <line x1="30" y1="46" x2="34" y2="46" stroke="#E03040" stroke-width="2" stroke-linecap="round"/>
+  <line x1="32" y1="44" x2="32" y2="49.5" stroke="#E03040" stroke-width="2" stroke-linecap="round" opacity="0.9"/>
+</svg>

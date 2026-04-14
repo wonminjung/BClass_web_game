@@ -13,8 +13,10 @@ export function useCombat() {
   const error = useCombatStore((s) => s.error);
   const startBattleAction = useCombatStore((s) => s.startBattle);
   const startAbyssBattleAction = useCombatStore((s) => s.startAbyssBattle);
+  const startWeeklyBossBattleAction = useCombatStore((s) => s.startWeeklyBossBattle);
   const useSkillAction = useCombatStore((s) => s.useSkill);
   const useAbyssSkillAction = useCombatStore((s) => s.useAbyssSkill);
+  const useWeeklyBossSkillAction = useCombatStore((s) => s.useWeeklyBossSkill);
   const useBattleItemAction = useCombatStore((s) => s.useBattleItem);
   const resetBattleAction = useCombatStore((s) => s.resetBattle);
   const abyssFloor = useCombatStore((s) => s.abyssFloor);
@@ -67,6 +69,7 @@ export function useCombat() {
   );
 
   const startAbyssBattle = useCallback(() => startAbyssBattleAction(), [startAbyssBattleAction]);
+  const startWeeklyBossBattle = useCallback(() => startWeeklyBossBattleAction(), [startWeeklyBossBattleAction]);
   const useBattleItem = useCallback(
     (itemId: string) => useBattleItemAction(itemId),
     [useBattleItemAction],
@@ -74,6 +77,10 @@ export function useCombat() {
   const useAbyssSkill = useCallback(
     (skillId: string, targetId: string) => useAbyssSkillAction(skillId, targetId),
     [useAbyssSkillAction],
+  );
+  const useWeeklyBossSkill = useCallback(
+    (skillId: string, targetId: string) => useWeeklyBossSkillAction(skillId, targetId),
+    [useWeeklyBossSkillAction],
   );
 
   return {
@@ -88,8 +95,10 @@ export function useCombat() {
     isDefeat,
     startBattle,
     startAbyssBattle,
+    startWeeklyBossBattle,
     useSkill,
     useAbyssSkill,
+    useWeeklyBossSkill,
     useBattleItem,
     resetBattle,
     canUseSkill,

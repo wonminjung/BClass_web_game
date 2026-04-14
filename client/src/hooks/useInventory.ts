@@ -16,12 +16,12 @@ export interface EquippedSlotInfo {
   enhanceLevel: number;
 }
 
-const EQUIP_SLOTS = ['weapon', 'shield', 'helm', 'shoulders', 'chest', 'gloves', 'belt', 'legs', 'boots', 'accessory'] as const;
-const EQUIP_TYPES = new Set(['weapon', 'shield', 'helm', 'shoulders', 'chest', 'gloves', 'belt', 'legs', 'boots', 'accessory']);
+const EQUIP_SLOTS = ['weapon', 'offhand', 'helm', 'shoulders', 'chest', 'gloves', 'belt', 'legs', 'boots', 'accessory'] as const;
+const EQUIP_TYPES = new Set(['weapon', 'shield', 'offhand', 'helm', 'shoulders', 'chest', 'gloves', 'belt', 'legs', 'boots', 'accessory']);
 
 const SLOT_LABELS: Record<string, string> = {
   weapon: '무기',
-  shield: '방패',
+  offhand: '보조장비',
   helm: '투구',
   shoulders: '견갑',
   chest: '흉갑',
@@ -87,8 +87,8 @@ export function useInventory() {
         if (res.data.saveData) {
           updateSaveData(res.data.saveData);
         }
-      } catch {
-        // Error handling left to UI
+      } catch (err) {
+        console.error('[useInventory] error:', err);
       }
     },
     [updateSaveData],
@@ -104,8 +104,8 @@ export function useInventory() {
         if (res.data.saveData) {
           updateSaveData(res.data.saveData);
         }
-      } catch {
-        // Error handling left to UI
+      } catch (err) {
+        console.error('[useInventory] error:', err);
       }
     },
     [updateSaveData],
@@ -118,8 +118,22 @@ export function useInventory() {
         if (res.data.saveData) {
           updateSaveData(res.data.saveData);
         }
-      } catch {
-        // Error handling left to UI
+      } catch (err) {
+        console.error('[useInventory] error:', err);
+      }
+    },
+    [updateSaveData],
+  );
+
+  const sellItem = useCallback(
+    async (itemId: string, quantity: number) => {
+      try {
+        const res = await axios.post<{ saveData: typeof saveData }>('/api/inventory/sell', { itemId, quantity });
+        if (res.data.saveData) {
+          updateSaveData(res.data.saveData);
+        }
+      } catch (err) {
+        console.error('[useInventory] error:', err);
       }
     },
     [updateSaveData],
@@ -137,6 +151,7 @@ export function useInventory() {
     useItem,
     equipItem,
     unequipItem,
+    sellItem,
     SLOT_LABELS,
   };
 }

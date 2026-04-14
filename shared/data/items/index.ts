@@ -6,6 +6,7 @@ import { EQUIP_SHADOW_MAGE } from './equip_shadow_mage';
 import { EQUIP_HUNTER } from './equip_hunter';
 import { EQUIP_PRIEST } from './equip_priest';
 import { EQUIP_ASSASSIN } from './equip_assassin';
+import { EQUIP_MYTHIC } from './equip_mythic';
 
 export {
   CONSUMABLES,
@@ -15,6 +16,7 @@ export {
   EQUIP_HUNTER,
   EQUIP_PRIEST,
   EQUIP_ASSASSIN,
+  EQUIP_MYTHIC,
 };
 
 /** 모든 아이템 통합 배열 (기존 ITEMS 호환) */
@@ -26,4 +28,5 @@ export const ITEMS: Item[] = [
   ...EQUIP_HUNTER,
   ...EQUIP_PRIEST,
   ...EQUIP_ASSASSIN,
+  ...EQUIP_MYTHIC,
 ];

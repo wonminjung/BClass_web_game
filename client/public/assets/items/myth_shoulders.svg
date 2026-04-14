@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <radialGradient id="mythGlow"><stop offset="0%" stop-color="#E11D48" stop-opacity="0.8"/><stop offset="100%" stop-color="#E11D48" stop-opacity="0"/></radialGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7F1D1D"/><stop offset="100%" stop-color="#4A1010"/></linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#mythGlow)" opacity="0.4"/>
+  <!-- Left shoulder pad -->
+  <path d="M4,28 Q4,18 16,16 L26,20 Q28,28 24,36 L10,34 Q4,32 4,28Z" fill="url(#metal)" stroke="#9F1239" stroke-width="1.2"/>
+  <!-- Right shoulder pad -->
+  <path d="M60,28 Q60,18 48,16 L38,20 Q36,28 40,36 L54,34 Q60,32 60,28Z" fill="url(#metal)" stroke="#9F1239" stroke-width="1.2"/>
+  <!-- Left wing -->
+  <path d="M8,20 Q2,10 6,4 Q10,10 14,8 Q12,16 8,20Z" fill="#E11D48" stroke="#9F1239" stroke-width="0.8" opacity="0.8"/>
+  <path d="M12,22 Q8,14 10,6 Q14,12 16,10 Q14,18 12,22Z" fill="#FFC0CB" stroke="#9F1239" stroke-width="0.5" opacity="0.5"/>
+  <!-- Right wing -->
+  <path d="M56,20 Q62,10 58,4 Q54,10 50,8 Q52,16 56,20Z" fill="#E11D48" stroke="#9F1239" stroke-width="0.8" opacity="0.8"/>
+  <path d="M52,22 Q56,14 54,6 Q50,12 48,10 Q50,18 52,22Z" fill="#FFC0CB" stroke="#9F1239" stroke-width="0.5" opacity="0.5"/>
+  <!-- Center connector -->
+  <path d="M26,24 Q32,20 38,24 L38,34 Q32,38 26,34 Z" fill="#4A1010" stroke="#9F1239" stroke-width="0.8"/>
+  <!-- Gem details -->
+  <circle cx="16" cy="24" r="2.5" fill="#E11D48" stroke="#FFD1DC" stroke-width="0.6"/>
+  <circle cx="48" cy="24" r="2.5" fill="#E11D48" stroke="#FFD1DC" stroke-width="0.6"/>
+  <circle cx="32" cy="28" r="3" fill="#E11D48" stroke="#FFD1DC" stroke-width="0.6"/>
+  <!-- Neck area -->
+  <rect x="28" y="38" width="8" height="18" rx="2" fill="#4A1010" stroke="#7F1D1D" stroke-width="0.8"/>
+  <!-- Shimmer particles -->
+  <circle cx="6" cy="44" r="1.5" fill="#FFD1DC" opacity="0.9"><animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.8s" repeatCount="indefinite"/></circle>
+  <circle cx="58" cy="44" r="1" fill="#E11D48" opacity="0.8"><animate attributeName="opacity" values="0.8;0.1;0.8" dur="2.2s" repeatCount="indefinite"/></circle>
+  <circle cx="32" cy="6" r="1.2" fill="#FFC0CB" opacity="0.7"><animate attributeName="opacity" values="0.7;0.15;0.7" dur="1.5s" repeatCount="indefinite"/></circle>
+  <circle cx="10" cy="58" r="1" fill="#FFD1DC" opacity="0.8"><animate attributeName="opacity" values="0.5;0.9;0.5" dur="2s" repeatCount="indefinite"/></circle>
+  <circle cx="54" cy="58" r="0.8" fill="#E11D48" opacity="0.6"><animate attributeName="opacity" values="0.6;0.1;0.6" dur="2.5s" repeatCount="indefinite"/></circle>
+</svg>

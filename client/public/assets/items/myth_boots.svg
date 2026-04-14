@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <radialGradient id="mythGlow"><stop offset="0%" stop-color="#E11D48" stop-opacity="0.8"/><stop offset="100%" stop-color="#E11D48" stop-opacity="0"/></radialGradient>
+    <linearGradient id="boot" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7F1D1D"/><stop offset="100%" stop-color="#4A1010"/></linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#mythGlow)" opacity="0.4"/>
+  <!-- Boot shaft -->
+  <path d="M20,6 L42,6 Q44,6 44,10 L44,38 L48,42 Q54,46 54,52 L54,56 Q54,60 50,60 L14,60 Q10,60 10,56 L10,52 Q10,46 16,42 L20,38 L20,10 Q20,6 20,6Z" fill="url(#boot)" stroke="#9F1239" stroke-width="1.2"/>
+  <!-- Boot top rim -->
+  <path d="M18,6 Q18,2 32,2 Q46,2 46,6" fill="none" stroke="#E11D48" stroke-width="1"/>
+  <rect x="18" y="4" width="28" height="5" rx="1" fill="#7F1D1D" stroke="#9F1239" stroke-width="0.6"/>
+  <!-- Sole -->
+  <rect x="8" y="56" width="48" height="4" rx="2" fill="#1A0505" stroke="#9F1239" stroke-width="0.8"/>
+  <!-- Decorative straps -->
+  <rect x="18" y="16" width="28" height="3" rx="1" fill="#9F1239" stroke="#E11D48" stroke-width="0.4"/>
+  <rect x="18" y="28" width="28" height="3" rx="1" fill="#9F1239" stroke="#E11D48" stroke-width="0.4"/>
+  <!-- Gem on strap -->
+  <circle cx="32" cy="17" r="2" fill="#E11D48" stroke="#FFD1DC" stroke-width="0.4"/>
+  <circle cx="32" cy="29" r="2" fill="#E11D48" stroke="#FFD1DC" stroke-width="0.4"/>
+  <!-- Energy trail effect -->
+  <path d="M14,58 Q8,54 6,48 Q4,42 8,38" fill="none" stroke="#E11D48" stroke-width="1.2" opacity="0.5"/>
+  <path d="M12,58 Q6,52 4,46" fill="none" stroke="#FFC0CB" stroke-width="0.8" opacity="0.3"/>
+  <path d="M50,58 Q56,54 58,48 Q60,42 56,38" fill="none" stroke="#E11D48" stroke-width="1.2" opacity="0.5"/>
+  <path d="M52,58 Q58,52 60,46" fill="none" stroke="#FFC0CB" stroke-width="0.8" opacity="0.3"/>
+  <!-- Toe cap -->
+  <path d="M10,52 Q10,46 20,44 L44,44 Q54,46 54,52" fill="#7F1D1D" stroke="#9F1239" stroke-width="0.6"/>
+  <!-- Shimmer particles -->
+  <circle cx="4" cy="32" r="1.5" fill="#FFD1DC" opacity="0.9"><animate attributeName="opacity" values="0.9;0.2;0.9" dur="1.8s" repeatCount="indefinite"/></circle>
+  <circle cx="60" cy="34" r="1" fill="#E11D48" opacity="0.8"><animate attributeName="opacity" values="0.8;0.1;0.8" dur="2.2s" repeatCount="indefinite"/></circle>
+  <circle cx="8" cy="12" r="1.2" fill="#FFC0CB" opacity="0.7"><animate attributeName="opacity" values="0.7;0.15;0.7" dur="1.5s" repeatCount="indefinite"/></circle>
+  <circle cx="56" cy="14" r="1" fill="#FFD1DC" opacity="0.8"><animate attributeName="opacity" values="0.5;0.9;0.5" dur="2s" repeatCount="indefinite"/></circle>
+  <circle cx="32" cy="62" r="0.8" fill="#E11D48" opacity="0.6"><animate attributeName="opacity" values="0.6;0.1;0.6" dur="2.5s" repeatCount="indefinite"/></circle>
+</svg>
