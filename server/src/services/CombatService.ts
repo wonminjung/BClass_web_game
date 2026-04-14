@@ -1352,6 +1352,24 @@ export function calculateAbyssRewards(battleId: string, characterId: string): Ba
     }
   }
 
+  // Enhancement stone drops (floor-based)
+  for (const enemy of battleState.enemies) {
+    if (!enemy.isAlive) continue; // skip alive enemies (shouldn't happen but safety)
+    let stoneId: string | null = null;
+    let stoneChance = 0;
+    if (floor < 100) { stoneId = 'enhance_stone_common'; stoneChance = 0.4; }
+    else if (floor < 200) { stoneId = 'enhance_stone_uncommon'; stoneChance = 0.35; }
+    else if (floor < 350) { stoneId = 'enhance_stone_rare'; stoneChance = 0.3; }
+    else if (floor < 500) { stoneId = 'enhance_stone_epic'; stoneChance = 0.25; }
+    else { stoneId = 'enhance_stone_legendary'; stoneChance = 0.2; }
+    // Bosses get guaranteed stone
+    if (isBossFloor) {
+      if (stoneId) addDrop(stoneId);
+    } else if (stoneId && Math.random() < stoneChance) {
+      addDrop(stoneId);
+    }
+  }
+
   // Apply talent gold bonus
   const talentGoldBonusAbyss = battleTalentMap.get(battleId);
   if (talentGoldBonusAbyss && talentGoldBonusAbyss.goldPercent > 0) {
