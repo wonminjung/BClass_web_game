@@ -142,36 +142,52 @@ router.post('/prestige', (req: Request, res: Response): void => {
       return;
     }
 
+    // Calculate artifact bonuses for prestige
+    const arts = saveData.artifacts ?? {};
+    const gemBoostPercent = (arts['art_gem'] ?? 0) * 10;       // 10% per level
+    const levelKeepPercent = (arts['art_level_keep'] ?? 0) * 5; // 5% per level, max 50%
+    const abyssKeepPercent = (arts['art_abyss_keep'] ?? 0) * 5; // 5% per level, max 50%
+
     // Calculate gem reward BEFORE resetting
     const currentLevel = saveData.level;
+    const currentAbyssFloor = saveData.abyssFloor ?? 0;
     const abyssHighest = saveData.abyssHighest ?? 0;
     const newPrestige = (saveData.prestigeLevel ?? 0) + 1;
 
     const baseGems = 50 * newPrestige;
     const levelBonus = Math.max(0, currentLevel - 60) * 2;
     const abyssBonus = Math.floor(abyssHighest * 0.5);
-    const totalGems = baseGems + levelBonus + abyssBonus;
+    const rawGems = baseGems + levelBonus + abyssBonus;
+    const totalGems = Math.round(rawGems * (1 + gemBoostPercent / 100));
 
     // Increment prestige
     saveData.prestigeLevel = newPrestige;
     saveData.gems += totalGems;
 
-    // Reset progression
-    saveData.level = 1;
+    // Reset progression (with artifact keep bonuses)
+    const keptLevel = Math.max(1, Math.floor(currentLevel * levelKeepPercent / 100));
+    const keptAbyssFloor = Math.floor(currentAbyssFloor * abyssKeepPercent / 100);
+
+    saveData.level = keptLevel;
     saveData.exp = 0;
     saveData.skillLevels = {};
     saveData.talentPoints = {};
-    saveData.abyssFloor = 0;
+    saveData.abyssFloor = keptAbyssFloor;
 
     // Keep: inventory, equippedItems, enhanceLevels, achievements, bestiary, dropHistory, gold, gems, abyssHighest, artifacts
 
     AuthService.saveProgress(saveCode, saveData);
 
+    const extraInfo = [];
+    if (gemBoostPercent > 0) extraInfo.push(`젬 부스트 +${gemBoostPercent}%`);
+    if (keptLevel > 1) extraInfo.push(`레벨 유지 Lv.${keptLevel}`);
+    if (keptAbyssFloor > 0) extraInfo.push(`심연 유지 ${keptAbyssFloor}층`);
+
     res.json({
       success: true,
-      message: `환생 완료! 환생 Lv.${newPrestige} | 젬 +${totalGems} (기본 ${baseGems} + 레벨 ${levelBonus} + 심연 ${abyssBonus})`,
+      message: `환생 완료! 환생 Lv.${newPrestige} | 젬 +${totalGems}${extraInfo.length > 0 ? ' | ' + extraInfo.join(', ') : ''}`,
       saveData,
-      gemBreakdown: { base: baseGems, level: levelBonus, abyss: abyssBonus, total: totalGems },
+      gemBreakdown: { base: baseGems, level: levelBonus, abyss: abyssBonus, gemBoost: gemBoostPercent, total: totalGems },
     });
   } catch (err) {
     console.error('[game/prestige]', err);

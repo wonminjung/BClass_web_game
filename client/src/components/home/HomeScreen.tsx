@@ -282,21 +282,31 @@ function HomeScreen() {
   }, [showColorPicker]);
 
   const handlePrestige = useCallback(async () => {
+    const arts = saveData?.artifacts ?? {};
+    const gemBoost = (arts['art_gem'] ?? 0) * 10;
+    const levelKeep = (arts['art_level_keep'] ?? 0) * 5;
+    const abyssKeep = (arts['art_abyss_keep'] ?? 0) * 5;
+
     const nextPrestige = (saveData?.prestigeLevel ?? 0) + 1;
     const baseGems = 50 * nextPrestige;
     const levelBonus = Math.max(0, (saveData?.level ?? 60) - 60) * 2;
     const abyssBonus = Math.floor((saveData?.abyssHighest ?? 0) * 0.5);
-    const totalGems = baseGems + levelBonus + abyssBonus;
+    const rawGems = baseGems + levelBonus + abyssBonus;
+    const totalGems = Math.round(rawGems * (1 + gemBoost / 100));
+
+    const keptLevel = Math.max(1, Math.floor((saveData?.level ?? 1) * levelKeep / 100));
+    const keptAbyss = Math.floor((saveData?.abyssFloor ?? 0) * abyssKeep / 100);
+
     const confirmed = await confirm(
       `환생하시겠습니까?\n\n` +
       `초기화:\n` +
-      `- 레벨 (현재 ${saveData?.level})\n` +
+      `- 레벨 ${saveData?.level} → ${keptLevel > 1 ? `Lv.${keptLevel} (${levelKeep}% 유지)` : '1'}\n` +
       `- 스킬 레벨, 특성 포인트\n` +
-      `- 심연 진행도 (최고 기록은 유지)\n\n` +
+      `- 심연 ${saveData?.abyssFloor}층 → ${keptAbyss > 0 ? `${keptAbyss}층 (${abyssKeep}% 유지)` : '0층'}\n\n` +
       `유지: 장비, 강화, 업적, 골드, 젬, 유물\n\n` +
       `보상:\n` +
       `- 환생 Lv.${nextPrestige} (전 스탯 +${nextPrestige * 2}%)\n` +
-      `- 젬 ${totalGems}개 (기본 ${baseGems} + 레벨 ${levelBonus} + 심연 ${abyssBonus})`
+      `- 젬 ${totalGems}개${gemBoost > 0 ? ` (부스트 +${gemBoost}%)` : ''}`
     );
     if (!confirmed) return;
     try {

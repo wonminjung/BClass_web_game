@@ -6,7 +6,7 @@ export interface Artifact {
   maxLevel: number;
   costPerLevel: (level: number) => number;
   effectPerLevel: number;
-  effectType: 'expPercent' | 'goldPercent' | 'dropRatePercent' | 'hpPercent' | 'mpPercent' | 'atkPercent' | 'defPercent' | 'autoHpThreshold' | 'battleSpeedBase';
+  effectType: 'expPercent' | 'goldPercent' | 'dropRatePercent' | 'hpPercent' | 'mpPercent' | 'atkPercent' | 'defPercent' | 'gemPercent' | 'prestigeLevelKeep' | 'prestigeAbyssKeep' | 'autoHpThreshold' | 'battleSpeedBase';
   effectUnit: string;
 }
 
@@ -48,5 +48,20 @@ export const ARTIFACTS: Artifact[] = [
     id: 'art_def', name: '수호의 룬', description: '방어력 증가',
     icon: '\uD83D\uDEE1\uFE0F', maxLevel: 10, costPerLevel: linear(25), effectPerLevel: 3,
     effectType: 'defPercent', effectUnit: '%',
+  },
+  {
+    id: 'art_gem', name: '젬 증폭기', description: '환생 시 젬 획득량 증가',
+    icon: '\uD83D\uDC8E', maxLevel: 10, costPerLevel: linear(30), effectPerLevel: 10,
+    effectType: 'gemPercent', effectUnit: '%',
+  },
+  {
+    id: 'art_level_keep', name: '기억의 수정', description: '환생 후 레벨 일부 유지',
+    icon: '\uD83E\uDDE0', maxLevel: 10, costPerLevel: linear(40), effectPerLevel: 5,
+    effectType: 'prestigeLevelKeep', effectUnit: '%',
+  },
+  {
+    id: 'art_abyss_keep', name: '심연의 닻', description: '환생 후 심연 진행도 일부 유지',
+    icon: '\u2693', maxLevel: 10, costPerLevel: linear(40), effectPerLevel: 5,
+    effectType: 'prestigeAbyssKeep', effectUnit: '%',
   },
 ];
