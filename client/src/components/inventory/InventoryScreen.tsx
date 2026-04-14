@@ -735,6 +735,22 @@ function ItemDetailModal({
           />
         )}
 
+        {/* Random options + Reroll */}
+        {isEquipType && (
+          <>
+            <RandomOptionsDisplay options={itemOptions ?? []} />
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={gold < (REROLL_COSTS[item.rarity] ?? 10000)}
+              onClick={() => onReroll(item.id)}
+              className="w-full mt-1"
+            >
+              옵션 리롤 ({(REROLL_COSTS[item.rarity] ?? 10000).toLocaleString()}G)
+            </Button>
+          </>
+        )}
+
         {/* Gold enhance */}
         {isEquipType && goldEnhanceInfo && (
           <div className="panel p-2 text-center space-y-1">
