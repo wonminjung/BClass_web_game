@@ -182,7 +182,12 @@ function DungeonSelect() {
 
       <h2 className="text-lg font-bold text-gray-400 mb-3">일반 던전</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {[...dungeons].sort((a, b) => b.requiredLevel - a.requiredLevel).map((dungeon) => (
+        {[...dungeons].sort((a, b) => {
+          const aUnlocked = playerLevel >= a.requiredLevel ? 1 : 0;
+          const bUnlocked = playerLevel >= b.requiredLevel ? 1 : 0;
+          if (aUnlocked !== bUnlocked) return bUnlocked - aUnlocked;
+          return b.requiredLevel - a.requiredLevel;
+        }).map((dungeon) => (
           <DungeonCard
             key={dungeon.id}
             dungeon={dungeon}
