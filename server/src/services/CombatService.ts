@@ -1182,7 +1182,6 @@ export function initAbyssBattle(
   saveData: SaveData,
 ): { battleState: BattleState; skillStates: SkillState[]; floor: number; error?: never } | { error: string } {
   const floor = saveData.abyssFloor ?? 0;
-  if (floor > 999) return { error: 'Maximum floor reached' };
 
   const character = CHARACTERS.find((c) => c.id === saveData.characterId);
   if (!character) return { error: 'Character data not found' };
