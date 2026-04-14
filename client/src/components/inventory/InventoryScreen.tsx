@@ -656,7 +656,7 @@ function EquippedDetailModal({
                   <button key={st.id} type="button"
                     onClick={async () => {
                       try {
-                        const res = await axios.post('/api/inventory/use-enhance-stone', { stoneId: st.id, targetItemId: slot.data!.id, quantity: 1 });
+                        const res = await axios.post('/api/inventory/use-enhance-stone', { stoneId: st.id, targetItemId: slot.data!.id, quantity: 999 });
                         if (res.data.success) {
                           updateSaveData(res.data.saveData);
                           const d = res.data;
@@ -666,7 +666,7 @@ function EquippedDetailModal({
                       } catch (err: any) { toast.error(err.response?.data?.message || '사용 실패'); }
                     }}
                     className={`text-[10px] px-2 py-1 rounded bg-dungeon-bg border border-dungeon-border hover:border-dungeon-accent ${st.color} transition-colors`}
-                  >{st.name} (+{st.exp})</button>
+                  >{st.name} (전부)</button>
                 ))}
               </div>
             </div>
@@ -902,7 +902,7 @@ function ItemDetailModal({
                   <button key={st.id} type="button"
                     onClick={async () => {
                       try {
-                        const res = await axios.post('/api/inventory/use-enhance-stone', { stoneId: st.id, targetItemId: item.id, quantity: 1 });
+                        const res = await axios.post('/api/inventory/use-enhance-stone', { stoneId: st.id, targetItemId: item.id, quantity: 999 });
                         if (res.data.success) {
                           updateSaveData(res.data.saveData);
                           const d = res.data;
@@ -912,7 +912,7 @@ function ItemDetailModal({
                       } catch (err: any) { toast.error(err.response?.data?.message || '사용 실패'); }
                     }}
                     className={`text-[10px] px-2 py-1 rounded bg-dungeon-bg border border-dungeon-border hover:border-dungeon-accent ${st.color} transition-colors`}
-                  >{st.name} (+{st.exp})</button>
+                  >{st.name} (전부)</button>
                 ))}
               </div>
             </div>
