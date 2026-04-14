@@ -1090,6 +1090,8 @@ function InventoryScreen() {
       if (res.data.success) {
         updateSaveData(res.data.saveData);
         toast.success(`리롤 완료! (${res.data.goldSpent.toLocaleString()}G 소모)`);
+        // 리롤 후 잠금 초기화 (옵션 수가 바뀔 수 있으므로)
+        setLockedOptionsMap((prev) => ({ ...prev, [itemId]: new Set() }));
         setSelectedItem((prev) => prev ? { ...prev } : null);
         setSelectedEquipSlot((prev) => prev ? { ...prev } : null);
       }
