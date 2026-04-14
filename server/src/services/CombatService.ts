@@ -10,8 +10,9 @@ import type {
   SkillState,
   SaveData,
 } from '../../../shared/types';
-import { CHARACTERS, SKILLS, MONSTERS, DUNGEONS, ITEMS, SETS } from '../../../shared/data';
+import { CHARACTERS, SKILLS, MONSTERS, DUNGEONS, ITEMS, SETS, GEMS, PETS, TALENTS, calculateTalentBonuses, TITLES } from '../../../shared/data';
 import type { SetBonus } from '../../../shared/data/sets';
+import type { TalentBonuses } from '../../../shared/data/talents';
 
 // ────────────────────────────────────────────────────────────
 // Battle state store (keyed by battle id)
@@ -22,6 +23,8 @@ const battleDungeonMap = new Map<string, string>();
 const battleCritMap = new Map<string, { critRate: number; critDamage: number }>();
 const battleSetActiveMap = new Map<string, SetBonus['active'][]>();
 const battleSkillLevelMap = new Map<string, Record<string, number>>();
+const battleTalentMap = new Map<string, TalentBonuses>();
+const battleTitleMap = new Map<string, string>(); // battleId → equipped title ID
 
 /** Calculate active set bonuses from equipped items */
 function calculateSetBonuses(equippedItemIds: string[]): { statMods: { atkPercent: number; defPercent: number; hpPercent: number; mpPercent: number; critRateFlat: number; critDmgPercent: number }; actives: SetBonus['active'][] } {
@@ -101,6 +104,21 @@ export function initBattle(
     equipSpd += (itemDef.stats.speed ?? 0) * mult;
   }
 
+  // Add socketed gem stats
+  for (const slotItemId of Object.values(saveData.equippedItems)) {
+    if (!slotItemId) continue;
+    const sockets = saveData.socketedGems?.[slotItemId] ?? [];
+    for (const gemId of sockets) {
+      const gem = GEMS.find((g) => g.id === gemId);
+      if (!gem) continue;
+      if (gem.stat === 'attack') equipAtk += gem.value;
+      else if (gem.stat === 'defense') equipDef += gem.value;
+      else if (gem.stat === 'hp') equipHp += gem.value;
+      else if (gem.stat === 'mp') equipMp += gem.value;
+      else if (gem.stat === 'speed') equipSpd += gem.value;
+    }
+  }
+
   // Set bonuses (% based)
   const equippedIds = Object.values(saveData.equippedItems).filter(Boolean) as string[];
   const { statMods, actives: setActives } = calculateSetBonuses(equippedIds);
@@ -121,6 +139,40 @@ export function initBattle(
   baseMp = Math.round(baseMp * prestigeBonus);
   baseAtk = Math.round(baseAtk * prestigeBonus);
   baseDef = Math.round(baseDef * prestigeBonus);
+
+  // Talent bonuses
+  const talentMods = calculateTalentBonuses(saveData.talentPoints ?? {});
+  baseHp = Math.round(baseHp * (1 + talentMods.hpPercent / 100));
+  baseMp = Math.round(baseMp * (1 + talentMods.mpPercent / 100));
+  baseAtk = Math.round(baseAtk * (1 + talentMods.atkPercent / 100));
+  baseDef = Math.round(baseDef * (1 + talentMods.defPercent / 100));
+
+  // Title bonus
+  const equippedTitleId = saveData.equippedTitle ?? '';
+  if (equippedTitleId) {
+    const titleDef = TITLES.find((t) => t.id === equippedTitleId);
+    if (titleDef?.bonus) {
+      if (titleDef.bonus.stat === 'atkPercent') baseAtk = Math.round(baseAtk * (1 + titleDef.bonus.value / 100));
+      if (titleDef.bonus.stat === 'defPercent') baseDef = Math.round(baseDef * (1 + titleDef.bonus.value / 100));
+      if (titleDef.bonus.stat === 'hpPercent') baseHp = Math.round(baseHp * (1 + titleDef.bonus.value / 100));
+      if (titleDef.bonus.stat === 'mpPercent') baseMp = Math.round(baseMp * (1 + titleDef.bonus.value / 100));
+    }
+  }
+
+  // Pet bonus
+  let petCritRateBonus = 0;
+  if (saveData.activePet) {
+    const pet = PETS.find((p) => p.id === saveData.activePet);
+    if (pet) {
+      for (const b of pet.bonus) {
+        if (b.stat === 'atkPercent') baseAtk = Math.round(baseAtk * (1 + b.value / 100));
+        if (b.stat === 'defPercent') baseDef = Math.round(baseDef * (1 + b.value / 100));
+        if (b.stat === 'hpPercent') baseHp = Math.round(baseHp * (1 + b.value / 100));
+        if (b.stat === 'mpPercent') baseMp = Math.round(baseMp * (1 + b.value / 100));
+        if (b.stat === 'critRateFlat') petCritRateBonus += b.value;
+      }
+    }
+  }
 
   const player: BattleFighter = {
     id: 'player',
@@ -194,16 +246,29 @@ export function initBattle(
     equipCritRate += (itemDef.stats.critRate ?? 0) * mult;
     equipCritDmg += (itemDef.stats.critDamage ?? 0) * mult;
   }
+  // Add socketed gem crit stats
+  for (const slotItemId of Object.values(saveData.equippedItems)) {
+    if (!slotItemId) continue;
+    const sockets = saveData.socketedGems?.[slotItemId] ?? [];
+    for (const gemId of sockets) {
+      const gem = GEMS.find((g) => g.id === gemId);
+      if (!gem) continue;
+      if (gem.stat === 'critRate') equipCritRate += gem.value;
+      else if (gem.stat === 'critDamage') equipCritDmg += gem.value;
+    }
+  }
 
   battleStore.set(battleState.id, battleState);
   skillStateStore.set(battleState.id, skillStates);
   battleDungeonMap.set(battleState.id, dungeonId);
   battleCritMap.set(battleState.id, {
-    critRate: character.baseStats.critRate + equipCritRate + statMods.critRateFlat,
-    critDamage: (character.baseStats.critDamage + equipCritDmg) * (1 + statMods.critDmgPercent / 100),
+    critRate: character.baseStats.critRate + equipCritRate + statMods.critRateFlat + petCritRateBonus + talentMods.critRateFlat,
+    critDamage: (character.baseStats.critDamage + equipCritDmg) * (1 + statMods.critDmgPercent / 100) * (1 + talentMods.critDmgPercent / 100),
   });
   battleSetActiveMap.set(battleState.id, setActives);
   battleSkillLevelMap.set(battleState.id, { ...(saveData.skillLevels ?? {}) });
+  battleTalentMap.set(battleState.id, talentMods);
+  battleTitleMap.set(battleState.id, saveData.equippedTitle ?? '');
   battleWaveMap.set(battleState.id, {
     current: waveIndex,
     total: dungeon.waves.length,
@@ -615,17 +680,23 @@ export function executeEnemyTurn(battleState: BattleState): BattleResult[] {
     }
   }
 
-  // MP natural recovery (3% of max per turn) + set active bonuses
+  // MP natural recovery (3% of max per turn) + set active bonuses + talent bonuses
   if (player.isAlive) {
     const setActives = battleSetActiveMap.get(battleState.id) ?? [];
+    const talentBonuses = battleTalentMap.get(battleState.id);
     let bonusHpRegen = 0;
     let bonusMpRegen = 0;
     for (const sa of setActives) {
       if (sa?.type === 'hp_regen_per_turn') bonusHpRegen += sa.value;
       if (sa?.type === 'mp_regen_per_turn') bonusMpRegen += sa.value;
     }
+    // Add talent regen bonuses
+    if (talentBonuses) {
+      bonusHpRegen += talentBonuses.hpRegenPercent;
+      bonusMpRegen += talentBonuses.mpRegenPercent;
+    }
 
-    // HP regen from set
+    // HP regen from set + talents
     if (bonusHpRegen > 0) {
       const hpHeal = Math.max(1, Math.floor(player.maxHp * bonusHpRegen / 100));
       const hpBefore = player.currentHp;
@@ -923,6 +994,24 @@ export function calculateRewards(battleId: string, characterId: string): BattleR
     }
   }
 
+  // Apply talent gold bonus
+  const talentGoldBonus = battleTalentMap.get(battleId);
+  if (talentGoldBonus && talentGoldBonus.goldPercent > 0) {
+    totalGold = Math.round(totalGold * (1 + talentGoldBonus.goldPercent / 100));
+  }
+
+  // Apply title gold bonus
+  const waveData = battleWaveMap.get(battleId);
+  if (waveData?.saveData) {
+    const titleId = waveData.saveData.equippedTitle ?? '';
+    if (titleId) {
+      const titleDef = TITLES.find((t) => t.id === titleId);
+      if (titleDef?.bonus?.stat === 'goldPercent') {
+        totalGold = Math.round(totalGold * (1 + titleDef.bonus.value / 100));
+      }
+    }
+  }
+
   return { exp: totalExp, gold: totalGold, items };
 }
 
@@ -936,6 +1025,8 @@ export function removeBattle(id: string): void {
   battleCritMap.delete(id);
   battleSetActiveMap.delete(id);
   battleSkillLevelMap.delete(id);
+  battleTalentMap.delete(id);
+  battleTitleMap.delete(id);
   battleWaveMap.delete(id);
   abyssFloorMap.delete(id);
   weeklyBossMap.delete(id);
@@ -995,6 +1086,23 @@ export function initAbyssBattle(
     equipCritDmg += (itemDef.stats.critDamage ?? 0) * mult;
   }
 
+  // Add socketed gem stats
+  for (const slotGemId0 of Object.values(saveData.equippedItems)) {
+    if (!slotGemId0) continue;
+    const gemSockets0 = saveData.socketedGems?.[slotGemId0] ?? [];
+    for (const gid0 of gemSockets0) {
+      const gemData0 = GEMS.find((x) => x.id === gid0);
+      if (!gemData0) continue;
+      if (gemData0.stat === 'attack') equipAtk += gemData0.value;
+      else if (gemData0.stat === 'defense') equipDef += gemData0.value;
+      else if (gemData0.stat === 'hp') equipHp += gemData0.value;
+      else if (gemData0.stat === 'mp') equipMp += gemData0.value;
+      else if (gemData0.stat === 'speed') equipSpd += gemData0.value;
+      else if (gemData0.stat === 'critRate') equipCritRate += gemData0.value;
+      else if (gemData0.stat === 'critDamage') equipCritDmg += gemData0.value;
+    }
+  }
+
   // Set bonuses
   const equippedIds = Object.values(saveData.equippedItems).filter(Boolean) as string[];
   const { statMods, actives: setActives } = calculateSetBonuses(equippedIds);
@@ -1015,6 +1123,40 @@ export function initAbyssBattle(
   baseMp = Math.round(baseMp * prestigeBonusAbyss);
   baseAtk = Math.round(baseAtk * prestigeBonusAbyss);
   baseDef = Math.round(baseDef * prestigeBonusAbyss);
+
+  // Talent bonuses (abyss)
+  const talentModsAbyss = calculateTalentBonuses(saveData.talentPoints ?? {});
+  baseHp = Math.round(baseHp * (1 + talentModsAbyss.hpPercent / 100));
+  baseMp = Math.round(baseMp * (1 + talentModsAbyss.mpPercent / 100));
+  baseAtk = Math.round(baseAtk * (1 + talentModsAbyss.atkPercent / 100));
+  baseDef = Math.round(baseDef * (1 + talentModsAbyss.defPercent / 100));
+
+  // Title bonus (abyss)
+  const equippedTitleIdAbyss = saveData.equippedTitle ?? '';
+  if (equippedTitleIdAbyss) {
+    const titleDefAbyss = TITLES.find((t) => t.id === equippedTitleIdAbyss);
+    if (titleDefAbyss?.bonus) {
+      if (titleDefAbyss.bonus.stat === 'atkPercent') baseAtk = Math.round(baseAtk * (1 + titleDefAbyss.bonus.value / 100));
+      if (titleDefAbyss.bonus.stat === 'defPercent') baseDef = Math.round(baseDef * (1 + titleDefAbyss.bonus.value / 100));
+      if (titleDefAbyss.bonus.stat === 'hpPercent') baseHp = Math.round(baseHp * (1 + titleDefAbyss.bonus.value / 100));
+      if (titleDefAbyss.bonus.stat === 'mpPercent') baseMp = Math.round(baseMp * (1 + titleDefAbyss.bonus.value / 100));
+    }
+  }
+
+  // Pet bonus (abyss)
+  let petCritRateBonusAbyss = 0;
+  if (saveData.activePet) {
+    const pet = PETS.find((p) => p.id === saveData.activePet);
+    if (pet) {
+      for (const b of pet.bonus) {
+        if (b.stat === 'atkPercent') baseAtk = Math.round(baseAtk * (1 + b.value / 100));
+        if (b.stat === 'defPercent') baseDef = Math.round(baseDef * (1 + b.value / 100));
+        if (b.stat === 'hpPercent') baseHp = Math.round(baseHp * (1 + b.value / 100));
+        if (b.stat === 'mpPercent') baseMp = Math.round(baseMp * (1 + b.value / 100));
+        if (b.stat === 'critRateFlat') petCritRateBonusAbyss += b.value;
+      }
+    }
+  }
 
   const player: BattleFighter = {
     id: 'player',
@@ -1098,11 +1240,13 @@ export function initAbyssBattle(
   skillStateStore.set(battleState.id, skillStates);
   battleDungeonMap.set(battleState.id, '__abyss__');
   battleCritMap.set(battleState.id, {
-    critRate: character.baseStats.critRate + equipCritRate + statMods.critRateFlat,
-    critDamage: (character.baseStats.critDamage + equipCritDmg) * (1 + statMods.critDmgPercent / 100),
+    critRate: character.baseStats.critRate + equipCritRate + statMods.critRateFlat + petCritRateBonusAbyss + talentModsAbyss.critRateFlat,
+    critDamage: (character.baseStats.critDamage + equipCritDmg) * (1 + statMods.critDmgPercent / 100) * (1 + talentModsAbyss.critDmgPercent / 100),
   });
   battleSetActiveMap.set(battleState.id, setActives);
   battleSkillLevelMap.set(battleState.id, { ...(saveData.skillLevels ?? {}) });
+  battleTalentMap.set(battleState.id, talentModsAbyss);
+  battleTitleMap.set(battleState.id, saveData.equippedTitle ?? '');
   abyssFloorMap.set(battleState.id, floor);
 
   return { battleState, skillStates, floor };
@@ -1152,6 +1296,21 @@ export function calculateAbyssRewards(battleId: string, characterId: string): Ba
     if (Math.random() < abyssDropRate(floor)) {
       const equipId = rollEquipment(characterId, 'legendary');
       if (equipId) addDrop(equipId);
+    }
+  }
+
+  // Apply talent gold bonus
+  const talentGoldBonusAbyss = battleTalentMap.get(battleId);
+  if (talentGoldBonusAbyss && talentGoldBonusAbyss.goldPercent > 0) {
+    totalGold = Math.round(totalGold * (1 + talentGoldBonusAbyss.goldPercent / 100));
+  }
+
+  // Apply title gold bonus
+  const abyssTitleId = battleTitleMap.get(battleId) ?? '';
+  if (abyssTitleId) {
+    const abyssTitleDef = TITLES.find((t) => t.id === abyssTitleId);
+    if (abyssTitleDef?.bonus?.stat === 'goldPercent') {
+      totalGold = Math.round(totalGold * (1 + abyssTitleDef.bonus.value / 100));
     }
   }
 
@@ -1236,6 +1395,23 @@ export function initWeeklyBossBattle(
     equipCritDmg += (itemDef.stats.critDamage ?? 0) * mult;
   }
 
+  // Add socketed gem stats
+  for (const slotGemId1 of Object.values(saveData.equippedItems)) {
+    if (!slotGemId1) continue;
+    const gemSockets1 = saveData.socketedGems?.[slotGemId1] ?? [];
+    for (const gid1 of gemSockets1) {
+      const gemData1 = GEMS.find((x) => x.id === gid1);
+      if (!gemData1) continue;
+      if (gemData1.stat === 'attack') equipAtk += gemData1.value;
+      else if (gemData1.stat === 'defense') equipDef += gemData1.value;
+      else if (gemData1.stat === 'hp') equipHp += gemData1.value;
+      else if (gemData1.stat === 'mp') equipMp += gemData1.value;
+      else if (gemData1.stat === 'speed') equipSpd += gemData1.value;
+      else if (gemData1.stat === 'critRate') equipCritRate += gemData1.value;
+      else if (gemData1.stat === 'critDamage') equipCritDmg += gemData1.value;
+    }
+  }
+
   // Set bonuses
   const equippedIds = Object.values(saveData.equippedItems).filter(Boolean) as string[];
   const { statMods, actives: setActives } = calculateSetBonuses(equippedIds);
@@ -1256,6 +1432,21 @@ export function initWeeklyBossBattle(
   baseMp = Math.round(baseMp * prestigeBonusWb);
   baseAtk = Math.round(baseAtk * prestigeBonusWb);
   baseDef = Math.round(baseDef * prestigeBonusWb);
+
+  // Pet bonus (weekly boss)
+  let petCritRateBonusWb = 0;
+  if (saveData.activePet) {
+    const pet = PETS.find((p) => p.id === saveData.activePet);
+    if (pet) {
+      for (const b of pet.bonus) {
+        if (b.stat === 'atkPercent') baseAtk = Math.round(baseAtk * (1 + b.value / 100));
+        if (b.stat === 'defPercent') baseDef = Math.round(baseDef * (1 + b.value / 100));
+        if (b.stat === 'hpPercent') baseHp = Math.round(baseHp * (1 + b.value / 100));
+        if (b.stat === 'mpPercent') baseMp = Math.round(baseMp * (1 + b.value / 100));
+        if (b.stat === 'critRateFlat') petCritRateBonusWb += b.value;
+      }
+    }
+  }
 
   const player: BattleFighter = {
     id: 'player',
@@ -1313,7 +1504,7 @@ export function initWeeklyBossBattle(
   skillStateStore.set(battleState.id, skillStates);
   battleDungeonMap.set(battleState.id, '__weekly_boss__');
   battleCritMap.set(battleState.id, {
-    critRate: character.baseStats.critRate + equipCritRate + statMods.critRateFlat,
+    critRate: character.baseStats.critRate + equipCritRate + statMods.critRateFlat + petCritRateBonusWb,
     critDamage: (character.baseStats.critDamage + equipCritDmg) * (1 + statMods.critDmgPercent / 100),
   });
   battleSetActiveMap.set(battleState.id, setActives);

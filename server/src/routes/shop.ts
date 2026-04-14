@@ -35,7 +35,7 @@ router.get('/', (req: Request, res: Response): void => {
     const shop = ShopService.getShop(saveData);
     AuthService.saveProgress(saveCode, saveData);
 
-    res.json({ success: true, ...shop, gold: saveData.gold });
+    res.json({ success: true, ...shop, gold: saveData.gold, gems: saveData.gems ?? 0 });
   } catch (err) {
     console.error('[shop/get]', err);
     res.status(500).json({ success: false, message: 'Internal server error' });

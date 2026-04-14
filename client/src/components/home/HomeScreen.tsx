@@ -1,11 +1,22 @@
-import { useEffect, useMemo, useCallback, useState } from 'react';
+import { useEffect, useMemo, useCallback, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useGameStore } from '@/stores/gameStore';
-import { CHARACTERS, ITEMS } from '@shared/data';
+import { CHARACTERS, ITEMS, TITLES } from '@shared/data';
 import Card from '@/components/common/Card';
 import StatBar from '@/components/common/StatBar';
 import axios from 'axios';
+
+const APPEARANCE_COLORS = [
+  '#8B5CF6', // purple (default)
+  '#EF4444', // red
+  '#3B82F6', // blue
+  '#10B981', // green
+  '#F59E0B', // yellow
+  '#EC4899', // pink
+  '#06B6D4', // cyan
+  '#F97316', // orange
+];
 
 function formatSaveCode(code: string): string {
   return code.replace(/(.{4})/g, '$1-').replace(/-$/, '');
@@ -130,6 +141,35 @@ function HomeScreen() {
   const handleShop = useCallback(() => navigate('/shop'), [navigate]);
   const handleSkills = useCallback(() => navigate('/skills'), [navigate]);
   const handleAchievements = useCallback(() => navigate('/achievements'), [navigate]);
+  const handlePets = useCallback(() => navigate('/pets'), [navigate]);
+
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
+  const appearanceColor = saveData?.appearance?.color ?? '#8B5CF6';
+
+  const handleColorChange = useCallback(async (color: string) => {
+    try {
+      const res = await axios.post('/api/game/appearance', { color });
+      if (res.data.success && res.data.saveData) {
+        updateSaveData(res.data.saveData);
+      }
+    } catch {
+      // silent fail
+    }
+    setShowColorPicker(false);
+  }, [updateSaveData]);
+
+  // Close color picker on outside click
+  useEffect(() => {
+    if (!showColorPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
+        setShowColorPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showColorPicker]);
 
   const handlePrestige = useCallback(async () => {
     const nextPrestige = (saveData?.prestigeLevel ?? 0) + 1;
@@ -212,11 +252,41 @@ function HomeScreen() {
       )}
 
       {/* Character portrait */}
-      <div className="flex flex-col items-center mb-6">
-        <div className="w-24 h-24 bg-dungeon-panel border-2 border-dungeon-accent/40 rounded-full flex items-center justify-center mb-3">
-          <span className="text-3xl text-dungeon-accent font-bold">{character.name[0]}</span>
+      <div className="flex flex-col items-center mb-6 relative">
+        <div
+          className="w-24 h-24 bg-dungeon-panel border-2 rounded-full flex items-center justify-center mb-3 cursor-pointer hover:scale-105 transition-transform"
+          style={{ borderColor: appearanceColor }}
+          onClick={() => setShowColorPicker((v) => !v)}
+          title="클릭하여 테마 색상 변경"
+        >
+          <span className="text-3xl font-bold" style={{ color: appearanceColor }}>{character.name[0]}</span>
         </div>
+        {/* Color picker */}
+        {showColorPicker && (
+          <div ref={colorPickerRef} className="absolute top-28 z-40 bg-dungeon-panel border border-dungeon-border rounded-lg p-3 shadow-xl">
+            <p className="text-xs text-gray-400 mb-2 text-center">테마 색상 선택</p>
+            <div className="grid grid-cols-4 gap-2">
+              {APPEARANCE_COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => handleColorChange(color)}
+                  className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${
+                    appearanceColor === color ? 'border-white scale-110' : 'border-transparent'
+                  }`}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         <h1 className="text-2xl font-bold text-gray-100">{saveData.playerName}</h1>
+        {(saveData.equippedTitle ?? '') !== '' && (() => {
+          const title = TITLES.find((t) => t.id === saveData.equippedTitle);
+          return title ? (
+            <p className="text-xs text-yellow-300 font-bold">{title.name}</p>
+          ) : null;
+        })()}
         <p className="text-sm text-dungeon-accent">{character.title} - {character.name}</p>
         <p className="text-xs text-yellow-400 mt-1">
           Lv. {saveData.level}
@@ -280,36 +350,51 @@ function HomeScreen() {
       </Card>
 
       {/* Menu buttons */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <Card hover onClick={handleDungeon} className="text-center py-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card hover onClick={handleDungeon} className="text-center py-6">
           <div className="text-3xl mb-2 text-red-400">&#9876;</div>
           <p className="text-lg font-bold">던전</p>
           <p className="text-xs text-gray-500 mt-1">던전에 도전하세요</p>
         </Card>
-        <Card hover onClick={handleShop} className="text-center py-8">
+        <Card hover onClick={handleShop} className="text-center py-6">
           <div className="text-3xl mb-2 text-green-400">&#9878;</div>
           <p className="text-lg font-bold">상점</p>
           <p className="text-xs text-gray-500 mt-1">아이템을 구매하세요</p>
         </Card>
-        <Card hover onClick={handleInventory} className="text-center py-8">
+        <Card hover onClick={handleInventory} className="text-center py-6">
           <div className="text-3xl mb-2 text-yellow-400">&#9776;</div>
-          <p className="text-lg font-bold">장비&가방</p>
+          <p className="text-lg font-bold">장비</p>
           <p className="text-xs text-gray-500 mt-1">장비를 관리하세요</p>
         </Card>
-        <Card hover onClick={handleSkills} className="text-center py-8">
+        <Card hover onClick={handleSkills} className="text-center py-6">
           <div className="text-3xl mb-2 text-cyan-400">&#9884;</div>
           <p className="text-lg font-bold">스킬</p>
           <p className="text-xs text-gray-500 mt-1">스킬을 강화하세요</p>
         </Card>
-        <Card hover onClick={handleAchievements} className="text-center py-8">
+        <Card hover onClick={() => navigate('/talents')} className="text-center py-6">
+          <div className="text-3xl mb-2 text-purple-400">&#10038;</div>
+          <p className="text-lg font-bold">특성</p>
+          <p className="text-xs text-gray-500 mt-1">특성을 배분하세요</p>
+        </Card>
+        <Card hover onClick={handlePets} className="text-center py-6">
+          <div className="text-3xl mb-2 text-pink-400">&#128062;</div>
+          <p className="text-lg font-bold">펫</p>
+          <p className="text-xs text-gray-500 mt-1">동료를 소환하세요</p>
+        </Card>
+        <Card hover onClick={handleAchievements} className="text-center py-6">
           <div className="text-3xl mb-2 text-orange-400">&#127942;</div>
           <p className="text-lg font-bold">업적</p>
           <p className="text-xs text-gray-500 mt-1">업적을 확인하세요</p>
         </Card>
-        <Card hover onClick={handleBestiary} className="text-center py-8">
+        <Card hover onClick={handleBestiary} className="text-center py-6">
           <div className="text-3xl mb-2 text-dungeon-accent">&#9733;</div>
           <p className="text-lg font-bold">기록일지</p>
           <p className="text-xs text-gray-500 mt-1">몬스터를 확인하세요</p>
+        </Card>
+        <Card hover onClick={() => navigate('/ranking')} className="text-center py-6">
+          <div className="text-3xl mb-2 text-amber-400">&#127941;</div>
+          <p className="text-lg font-bold">랭킹</p>
+          <p className="text-xs text-gray-500 mt-1">순위를 확인하세요</p>
         </Card>
       </div>
     </div>

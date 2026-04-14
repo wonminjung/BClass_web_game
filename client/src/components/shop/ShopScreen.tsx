@@ -43,22 +43,38 @@ interface PotionShopItem {
   price: number;
 }
 
+interface RecipeStatus {
+  id: string;
+  name: string;
+  description: string;
+  resultItemId: string;
+  resultQuantity: number;
+  goldCost: number;
+  materialsStatus: { itemId: string; itemName: string; required: number; owned: number; sufficient: boolean }[];
+  canCraft: boolean;
+}
+
 function ShopScreen() {
   const navigate = useNavigate();
   const { isAuthenticated, saveData, updateSaveData } = useAuth();
+  const [shopTab, setShopTab] = useState<'potion' | 'equip' | 'craft'>('potion');
   const [potions, setPotions] = useState<PotionShopItem[]>([]);
   const [equipment, setEquipment] = useState<ShopItem[]>([]);
   const [refreshAt, setRefreshAt] = useState('');
   const [gold, setGold] = useState(0);
+  const [gems, setGems] = useState(0);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [potionQty, setPotionQty] = useState<Record<string, number>>({});
   const [selectedEquip, setSelectedEquip] = useState<ShopItem | null>(null);
   const [countdown, setCountdown] = useState('');
+  const [recipes, setRecipes] = useState<RecipeStatus[]>([]);
+  const [craftLoading, setCraftLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) { navigate('/', { replace: true }); return; }
     loadShop();
+    loadRecipes();
   }, [isAuthenticated, navigate]);
 
   // Countdown timer
@@ -86,14 +102,44 @@ function ShopScreen() {
         setEquipment(res.data.equipment);
         setRefreshAt(res.data.refreshAt);
         setGold(res.data.gold);
+        setGems(res.data.gems ?? saveData?.gems ?? 0);
       }
     } catch { /* */ } finally { setLoading(false); }
-  }, []);
+  }, [saveData?.gems]);
 
   const showMessage = useCallback((text: string, type: 'success' | 'error') => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 2000);
   }, []);
+
+  const loadRecipes = useCallback(async () => {
+    try {
+      const res = await axios.get('/api/craft/recipes');
+      if (res.data.success) {
+        setRecipes(res.data.recipes);
+        setGold(res.data.gold);
+        setGems(res.data.gems ?? 0);
+      }
+    } catch { /* */ }
+  }, []);
+
+  const handleCraft = useCallback(async (recipeId: string) => {
+    try {
+      setCraftLoading(true);
+      const res = await axios.post('/api/craft/make', { recipeId });
+      if (res.data.success) {
+        updateSaveData(res.data.saveData);
+        setGold(res.data.saveData.gold);
+        setGems(res.data.saveData.gems ?? 0);
+        showMessage(res.data.message, 'success');
+        loadRecipes();
+      }
+    } catch (err: any) {
+      showMessage(err.response?.data?.message || '제작 실패', 'error');
+    } finally {
+      setCraftLoading(false);
+    }
+  }, [updateSaveData, loadRecipes, showMessage]);
 
   const handleBuyPotion = useCallback(async (itemId: string) => {
     const qty = potionQty[itemId] || 1;
@@ -134,7 +180,10 @@ function ShopScreen() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-green-400">상점</h1>
-          <p className="text-sm text-yellow-400 mt-1">G {gold.toLocaleString()}</p>
+          <div className="flex gap-4 text-sm mt-1">
+            <span className="text-yellow-400">G {gold.toLocaleString()}</span>
+            <span className="text-purple-400">&#9670; {gems.toLocaleString()}</span>
+          </div>
         </div>
         <Button variant="secondary" size="sm" onClick={handleBack}>돌아가기</Button>
       </div>
@@ -146,8 +195,30 @@ function ShopScreen() {
         </div>
       )}
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4">
+        {([
+          { key: 'potion' as const, label: '포션' },
+          { key: 'equip' as const, label: '장비' },
+          { key: 'craft' as const, label: '제작' },
+        ]).map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setShopTab(t.key)}
+            className={`px-4 py-2 rounded-t-lg text-sm font-bold transition-colors ${
+              shopTab === t.key
+                ? 'bg-dungeon-panel text-green-400 border-b-2 border-green-400'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       {/* Potions section */}
-      <Card className="mb-6 p-4">
+      {shopTab === 'potion' && <Card className="mb-6 p-4">
         <h2 className="text-lg font-bold text-gray-300 mb-3">소비 아이템</h2>
         <div className="space-y-3">
           {potions.map((p) => {
@@ -181,10 +252,10 @@ function ShopScreen() {
             );
           })}
         </div>
-      </Card>
+      </Card>}
 
       {/* Equipment section */}
-      <Card className="p-4">
+      {shopTab === 'equip' && <Card className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-gray-300">장비 상점</h2>
           <span className="text-xs text-gray-500">갱신까지: {countdown}</span>
@@ -223,7 +294,65 @@ function ShopScreen() {
             );
           })}
         </div>
-      </Card>
+      </Card>}
+
+      {/* Craft section */}
+      {shopTab === 'craft' && (
+        <div className="space-y-4">
+          {recipes.length === 0 ? (
+            <p className="text-center text-gray-500 py-8">레시피를 불러오는 중...</p>
+          ) : (
+            recipes.map((recipe) => {
+              const resultItem = recipe.resultItemId === '__gems__' ? null : ITEMS.find((i) => i.id === recipe.resultItemId);
+              return (
+                <Card key={recipe.id} className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-200">{recipe.name}</h3>
+                      <p className="text-[10px] text-gray-500">{recipe.description}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400">결과</p>
+                      <p className="text-sm font-bold text-green-400">
+                        {recipe.resultItemId === '__gems__'
+                          ? `젬 x${recipe.resultQuantity}`
+                          : `${resultItem?.name ?? recipe.resultItemId} x${recipe.resultQuantity}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 mb-3">
+                    {recipe.materialsStatus.map((mat) => (
+                      <div key={mat.itemId} className="flex justify-between text-xs panel py-1 px-2">
+                        <span className="text-gray-400">{mat.itemName}</span>
+                        <span className={mat.sufficient ? 'text-green-400' : 'text-red-400'}>
+                          {mat.owned}/{mat.required}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-xs panel py-1 px-2">
+                      <span className="text-gray-400">골드</span>
+                      <span className={gold >= recipe.goldCost ? 'text-yellow-400' : 'text-red-400'}>
+                        {recipe.goldCost.toLocaleString()}G
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={!recipe.canCraft || craftLoading}
+                    onClick={() => handleCraft(recipe.id)}
+                    className="w-full"
+                  >
+                    {recipe.canCraft ? '제작' : '재료 부족'}
+                  </Button>
+                </Card>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* Equipment detail modal */}
       {selectedEquip && (() => {

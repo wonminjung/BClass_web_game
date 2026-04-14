@@ -39,3 +39,12 @@ export interface InventorySlot {
   itemId: string;
   quantity: number;
 }
+
+export interface Gem {
+  id: string;
+  name: string;
+  description: string;
+  stat: keyof ItemStats;
+  value: number;
+  cost: number; // gems currency
+}

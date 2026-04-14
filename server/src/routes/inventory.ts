@@ -2,7 +2,8 @@ import { Router, type Request, type Response } from 'express';
 import { validate } from '../middleware/validate';
 import * as AuthService from '../services/AuthService';
 import * as GameService from '../services/GameService';
-import { ITEMS } from '../../../shared/data';
+import { ITEMS, GEMS } from '../../../shared/data';
+import type { ItemRarity } from '../../../shared/types/item';
 
 const router = Router();
 
@@ -214,6 +215,134 @@ router.post(
       });
     } catch (err) {
       console.error('[inventory/enhance-gold]', err);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  },
+);
+
+// ── POST /socket-gem ────────────────────────────────────────
+function getSocketCount(rarity: ItemRarity): number {
+  switch (rarity) {
+    case 'common':
+    case 'uncommon':
+      return 1;
+    case 'rare':
+      return 2;
+    case 'epic':
+    case 'legendary':
+      return 3;
+    default:
+      return 1;
+  }
+}
+
+router.post(
+  '/socket-gem',
+  validate([
+    { name: 'itemId', type: 'string', minLength: 1 },
+    { name: 'gemId', type: 'string', minLength: 1 },
+  ]),
+  (req: Request, res: Response): void => {
+    try {
+      const saveCode = extractSaveCode(req, res);
+      if (!saveCode) return;
+
+      const saveData = AuthService.getSaveData(saveCode);
+      if (!saveData) {
+        res.status(404).json({ success: false, message: 'Save data not found' });
+        return;
+      }
+
+      const { itemId, gemId } = req.body;
+
+      // Check gem exists
+      const gem = GEMS.find((g) => g.id === gemId);
+      if (!gem) {
+        res.status(400).json({ success: false, message: 'Gem not found' });
+        return;
+      }
+
+      // Check player owns item (inventory or equipped)
+      const itemDef = ITEMS.find((i) => i.id === itemId);
+      if (!itemDef) {
+        res.status(400).json({ success: false, message: 'Item not found' });
+        return;
+      }
+
+      const ownsInInventory = saveData.inventory.some((s) => s.itemId === itemId);
+      const ownsEquipped = Object.values(saveData.equippedItems).some((id) => id === itemId);
+      if (!ownsInInventory && !ownsEquipped) {
+        res.status(400).json({ success: false, message: '해당 아이템을 보유하고 있지 않습니다' });
+        return;
+      }
+
+      // Check gems currency
+      if ((saveData.gems ?? 0) < gem.cost) {
+        res.status(400).json({ success: false, message: '젬이 부족합니다' });
+        return;
+      }
+
+      // Check socket slots
+      if (!saveData.socketedGems) {
+        saveData.socketedGems = {};
+      }
+      const currentSockets = saveData.socketedGems[itemId] ?? [];
+      const maxSockets = getSocketCount(itemDef.rarity);
+      if (currentSockets.length >= maxSockets) {
+        res.status(400).json({ success: false, message: '소켓이 모두 사용되었습니다' });
+        return;
+      }
+
+      // Deduct gems and add socket
+      saveData.gems -= gem.cost;
+      saveData.socketedGems[itemId] = [...currentSockets, gemId];
+
+      AuthService.saveProgress(saveCode, saveData);
+      res.json({ success: true, message: `${gem.name} 장착 완료`, saveData });
+    } catch (err) {
+      console.error('[inventory/socket-gem]', err);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  },
+);
+
+// ── POST /unsocket-gem ──────────────────────────────────────
+router.post(
+  '/unsocket-gem',
+  validate([
+    { name: 'itemId', type: 'string', minLength: 1 },
+    { name: 'socketIndex', type: 'number', min: 0 },
+  ]),
+  (req: Request, res: Response): void => {
+    try {
+      const saveCode = extractSaveCode(req, res);
+      if (!saveCode) return;
+
+      const saveData = AuthService.getSaveData(saveCode);
+      if (!saveData) {
+        res.status(404).json({ success: false, message: 'Save data not found' });
+        return;
+      }
+
+      const { itemId, socketIndex } = req.body;
+
+      if (!saveData.socketedGems) {
+        saveData.socketedGems = {};
+      }
+      const currentSockets = saveData.socketedGems[itemId] ?? [];
+      if (socketIndex < 0 || socketIndex >= currentSockets.length) {
+        res.status(400).json({ success: false, message: '잘못된 소켓 인덱스입니다' });
+        return;
+      }
+
+      // Remove gem (no refund)
+      currentSockets.splice(socketIndex, 1);
+      saveData.socketedGems[itemId] = currentSockets;
+
+      AuthService.saveProgress(saveCode, saveData);
+      res.json({ success: true, message: '보석이 제거되었습니다', saveData });
+    } catch (err) {
+      console.error('[inventory/unsocket-gem]', err);
       res.status(500).json({ success: false, message: 'Internal server error' });
     }
   },

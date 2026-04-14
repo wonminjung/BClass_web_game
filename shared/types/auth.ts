@@ -19,9 +19,15 @@ export interface SaveData {
   achievements: string[];  // completed achievement IDs
   totalKills: number;
   lastDailyReward: string;
+  socketedGems: Record<string, string[]>;  // itemId → gem IDs array
   skillLevels: Record<string, number>;  // skillId → level
   prestigeLevel: number;
   lastWeeklyBoss: string;  // ISO date of last weekly boss attempt
+  talentPoints: Record<string, number>;  // talentId → invested levels
+  equippedTitle: string;  // title ID
+  ownedPets: string[];     // owned pet IDs
+  activePet: string;       // equipped pet ID
+  appearance: { color: string };
   createdAt: string;
   lastPlayedAt: string;
 }

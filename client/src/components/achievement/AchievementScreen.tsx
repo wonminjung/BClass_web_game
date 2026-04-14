@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useCallback } from 'react';
+import { useEffect, useMemo, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { ACHIEVEMENTS } from '@shared/data';
+import { ACHIEVEMENTS, TITLES } from '@shared/data';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
+import axios from 'axios';
 
 function AchievementScreen() {
   const navigate = useNavigate();
-  const { isAuthenticated, saveData } = useAuth();
+  const { isAuthenticated, saveData, updateSaveData } = useAuth();
+  const [titleLoading, setTitleLoading] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) navigate('/', { replace: true });
@@ -32,6 +34,25 @@ function AchievementScreen() {
     [saveData?.achievements],
   );
 
+  const handleEquipTitle = useCallback(async (titleId: string) => {
+    setTitleLoading(titleId);
+    try {
+      const res = await axios.post('/api/game/equip-title', { titleId });
+      if (res.data.success && res.data.saveData) {
+        updateSaveData(res.data.saveData);
+      }
+    } catch (err: unknown) {
+      const msg = axios.isAxiosError(err) && err.response?.data?.message
+        ? err.response.data.message
+        : '칭호 장착에 실패했습니다.';
+      alert(msg);
+    } finally {
+      setTitleLoading(null);
+    }
+  }, [updateSaveData]);
+
+  const equippedTitle = saveData?.equippedTitle ?? '';
+
   if (!saveData) return null;
 
   return (
@@ -48,6 +69,52 @@ function AchievementScreen() {
           돌아가기
         </Button>
       </div>
+
+      {/* Titles section */}
+      <Card className="mb-6 p-4">
+        <h2 className="text-lg font-bold text-yellow-400 mb-3">칭호</h2>
+        <div className="space-y-2">
+          {TITLES.map((title) => {
+            const unlocked = completedIds.has(title.requirement);
+            const isEquipped = equippedTitle === title.id;
+
+            return (
+              <div
+                key={title.id}
+                className={`flex items-center justify-between p-2 rounded-lg ${
+                  unlocked ? 'bg-dungeon-panel' : 'bg-dungeon-panel/30 opacity-50'
+                } ${isEquipped ? 'border border-yellow-500/60' : ''}`}
+              >
+                <div>
+                  <span className={`font-bold text-sm ${isEquipped ? 'text-yellow-400' : unlocked ? 'text-gray-200' : 'text-gray-500'}`}>
+                    {title.name}
+                  </span>
+                  <span className="text-xs text-gray-500 ml-2">{title.description}</span>
+                  {title.bonus && (
+                    <span className="text-xs text-green-400 ml-2">
+                      [{title.bonus.stat === 'atkPercent' ? '공격력' : title.bonus.stat === 'hpPercent' ? 'HP' : title.bonus.stat === 'goldPercent' ? '골드 획득' : title.bonus.stat} +{title.bonus.value}%]
+                    </span>
+                  )}
+                </div>
+                {unlocked && (
+                  <button
+                    type="button"
+                    disabled={titleLoading === title.id}
+                    onClick={() => handleEquipTitle(isEquipped ? '' : title.id)}
+                    className={`px-3 py-1 text-xs font-bold rounded transition-colors ${
+                      isEquipped
+                        ? 'bg-yellow-600/30 text-yellow-400 hover:bg-red-600/30 hover:text-red-400'
+                        : 'bg-dungeon-accent/20 text-dungeon-accent hover:bg-dungeon-accent/30'
+                    }`}
+                  >
+                    {titleLoading === title.id ? '...' : isEquipped ? '해제' : '장착'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
 
       {/* Achievement list */}
       <div className="space-y-3">

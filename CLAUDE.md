@@ -36,7 +36,7 @@ cd server && npm run build  # server tsc compile
 web_game/
 ├── shared/           # 클라이언트/서버 공유 코드
 │   ├── types/        # TypeScript 인터페이스 (Character, Skill, Monster, Item, Combat, Auth)
-│   └── data/         # 게임 데이터 (캐릭터 5종, 스킬 25개, 몬스터 5종, 던전 4개, 아이템 16개)
+│   └── data/         # 게임 데이터 (캐릭터 5종, 스킬 25개, 몬스터 5종, 던전 4개, 아이템, 특성 9개, 칭호 7개)
 ├── client/           # React SPA
 │   └── src/
 │       ├── stores/   # Zustand 스토어 (authStore, gameStore, combatStore)
@@ -47,6 +47,8 @@ web_game/
 │           ├── home/      # HomeScreen, DungeonSelect
 │           ├── battle/    # BattleScreen, SkillBar, BattleResult
 │           ├── inventory/ # InventoryScreen
+│           ├── talents/   # TalentScreen
+│           ├── ranking/   # RankingScreen
 │           └── bestiary/  # BestiaryScreen
 └── server/           # Express API
     └── src/
@@ -82,6 +84,10 @@ web_game/
 - `POST /api/game/prestige` - 환생 (레벨 60+ 시 레벨 리셋, 영구 스탯 보너스)
 - `POST /api/combat/weekly-boss/start` - 주간 보스 전투 시작
 - `POST /api/combat/weekly-boss/action` - 주간 보스 전투 액션
+- `POST /api/game/talent-invest` - 특성 포인트 투자
+- `POST /api/game/talent-reset` - 특성 초기화 (10,000G)
+- `POST /api/game/equip-title` - 칭호 장착/해제
+- `GET /api/ranking/abyss` - 심연 랭킹 (상위 20)
 
 ## Damage Formula
 

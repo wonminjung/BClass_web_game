@@ -11,6 +11,9 @@ import BestiaryScreen from './components/bestiary/BestiaryScreen';
 import ShopScreen from './components/shop/ShopScreen';
 import AchievementScreen from './components/achievement/AchievementScreen';
 import SkillScreen from './components/skills/SkillScreen';
+import PetScreen from './components/pets/PetScreen';
+import TalentScreen from './components/talents/TalentScreen';
+import RankingScreen from './components/ranking/RankingScreen';
 
 function App() {
   const restoreSession = useAuthStore((s) => s.restoreSession);
@@ -31,6 +34,9 @@ function App() {
       <Route path="/shop" element={<ShopScreen />} />
       <Route path="/achievements" element={<AchievementScreen />} />
       <Route path="/skills" element={<SkillScreen />} />
+      <Route path="/pets" element={<PetScreen />} />
+      <Route path="/talents" element={<TalentScreen />} />
+      <Route path="/ranking" element={<RankingScreen />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

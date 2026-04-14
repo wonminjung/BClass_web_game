@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useInventory } from '@/hooks/useInventory';
 import type { ResolvedItem, EquippedSlotInfo } from '@/hooks/useInventory';
-import type { Item } from '@shared/types';
-import { ITEMS, SETS, CHARACTERS } from '@shared/data';
+import type { Item, ItemRarity } from '@shared/types';
+import { ITEMS, SETS, CHARACTERS, GEMS } from '@shared/data';
 import axios from 'axios';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
@@ -306,6 +306,117 @@ function EquipSelectModal({
   );
 }
 
+// ── Gem socket helpers ──
+
+function getSocketCount(rarity: ItemRarity): number {
+  switch (rarity) {
+    case 'common':
+    case 'uncommon':
+      return 1;
+    case 'rare':
+      return 2;
+    case 'epic':
+    case 'legendary':
+      return 3;
+    default:
+      return 1;
+  }
+}
+
+function GemSocketSection({
+  itemId,
+  rarity,
+  socketedGems,
+  playerGems,
+  onSocket,
+  onUnsocket,
+}: {
+  itemId: string;
+  rarity: ItemRarity;
+  socketedGems: string[];
+  playerGems: number;
+  onSocket: (itemId: string, gemId: string) => void;
+  onUnsocket: (itemId: string, socketIndex: number) => void;
+}) {
+  const [showGemList, setShowGemList] = useState(false);
+  const maxSockets = getSocketCount(rarity);
+
+  return (
+    <div className="panel p-2 space-y-2">
+      <p className="text-xs font-bold text-gray-400">
+        소켓 ({socketedGems.length}/{maxSockets}) | 보유 젬: <span className="text-purple-400">{playerGems}</span>
+      </p>
+      <div className="flex gap-2">
+        {Array.from({ length: maxSockets }).map((_, i) => {
+          const gemId = socketedGems[i];
+          const gem = gemId ? GEMS.find((g) => g.id === gemId) : null;
+          return (
+            <div
+              key={i}
+              className={`flex-1 rounded border-2 p-1.5 text-center text-[10px] ${
+                gem
+                  ? 'border-purple-500/60 bg-purple-500/10'
+                  : 'border-gray-600/40 border-dashed bg-dungeon-bg/30'
+              }`}
+            >
+              {gem ? (
+                <div>
+                  <p className="text-purple-300 font-bold">{gem.name}</p>
+                  <p className="text-gray-500">{gem.description}</p>
+                  <button
+                    type="button"
+                    onClick={() => onUnsocket(itemId, i)}
+                    className="text-red-400 hover:text-red-300 mt-0.5"
+                  >
+                    제거
+                  </button>
+                </div>
+              ) : (
+                <span className="text-gray-600">빈 소켓</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {socketedGems.length < maxSockets && (
+        <>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setShowGemList(!showGemList)}
+            className="w-full"
+          >
+            {showGemList ? '닫기' : '보석 장착'}
+          </Button>
+          {showGemList && (
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {GEMS.map((gem) => (
+                <button
+                  key={gem.id}
+                  type="button"
+                  disabled={playerGems < gem.cost}
+                  onClick={() => { onSocket(itemId, gem.id); setShowGemList(false); }}
+                  className={`w-full flex justify-between items-center p-2 rounded text-xs transition-colors ${
+                    playerGems >= gem.cost
+                      ? 'hover:bg-purple-500/10 text-gray-300'
+                      : 'opacity-40 cursor-not-allowed text-gray-500'
+                  }`}
+                >
+                  <div className="text-left">
+                    <span className="text-purple-300 font-bold">{gem.name}</span>
+                    <span className="text-gray-500 ml-2">{gem.description}</span>
+                  </div>
+                  <span className="text-purple-400 font-bold">{gem.cost} 젬</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Equipped item detail modal ──
 
 function EquippedDetailModal({
@@ -315,6 +426,10 @@ function EquippedDetailModal({
   onUnequip,
   gold,
   onGoldEnhance,
+  socketedGems,
+  playerGems,
+  onSocket,
+  onUnsocket,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -322,6 +437,10 @@ function EquippedDetailModal({
   onUnequip: (slotName: string) => void;
   gold: number;
   onGoldEnhance: (itemId: string) => void;
+  socketedGems: string[];
+  playerGems: number;
+  onSocket: (itemId: string, gemId: string) => void;
+  onUnsocket: (itemId: string, socketIndex: number) => void;
 }) {
   if (!slot?.data) return null;
 
@@ -343,6 +462,16 @@ function EquippedDetailModal({
         </div>
         <p className="text-sm text-gray-300">{slot.data.description}</p>
         <ItemStatsDisplay item={slot.data} enhanceLevel={slot.enhanceLevel} />
+
+        {/* Gem sockets */}
+        <GemSocketSection
+          itemId={slot.data.id}
+          rarity={slot.data.rarity}
+          socketedGems={socketedGems}
+          playerGems={playerGems}
+          onSocket={onSocket}
+          onUnsocket={onUnsocket}
+        />
 
         {/* Gold enhance */}
         {canEnhance && (
@@ -422,6 +551,10 @@ function ItemDetailModal({
   onGoldEnhance,
   goldEnhanceInfo,
   gold,
+  socketedGems,
+  playerGems,
+  onSocket,
+  onUnsocket,
 }: {
   item: Item | null;
   enhanceLevel: number;
@@ -434,6 +567,10 @@ function ItemDetailModal({
   onGoldEnhance: (itemId: string) => void;
   goldEnhanceInfo: { cost: number; rate: number } | null;
   gold: number;
+  socketedGems: string[];
+  playerGems: number;
+  onSocket: (itemId: string, gemId: string) => void;
+  onUnsocket: (itemId: string, socketIndex: number) => void;
 }) {
   if (!item) return null;
 
@@ -494,6 +631,18 @@ function ItemDetailModal({
           <p className="text-xs text-gray-500">
             강화 배율: x{1 + enhanceLevel} (기본 스탯의 {(1 + enhanceLevel) * 100}%)
           </p>
+        )}
+
+        {/* Gem sockets */}
+        {isEquipType && (
+          <GemSocketSection
+            itemId={item.id}
+            rarity={item.rarity}
+            socketedGems={socketedGems}
+            playerGems={playerGems}
+            onSocket={onSocket}
+            onUnsocket={onUnsocket}
+          />
         )}
 
         {/* Gold enhance */}
@@ -639,6 +788,33 @@ function InventoryScreen() {
     setEquipSelectSlot(slotName);
   }, []);
 
+  const handleSocketGem = useCallback(async (itemId: string, gemId: string) => {
+    try {
+      const res = await axios.post('/api/inventory/socket-gem', { itemId, gemId });
+      if (res.data.success) {
+        updateSaveData(res.data.saveData);
+        // Force refresh modals
+        setSelectedItem((prev) => prev ? { ...prev } : null);
+        setSelectedEquipSlot((prev) => prev ? { ...prev } : null);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || '보석 장착 실패');
+    }
+  }, [updateSaveData]);
+
+  const handleUnsocketGem = useCallback(async (itemId: string, socketIndex: number) => {
+    try {
+      const res = await axios.post('/api/inventory/unsocket-gem', { itemId, socketIndex });
+      if (res.data.success) {
+        updateSaveData(res.data.saveData);
+        setSelectedItem((prev) => prev ? { ...prev } : null);
+        setSelectedEquipSlot((prev) => prev ? { ...prev } : null);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || '보석 제거 실패');
+    }
+  }, [updateSaveData]);
+
   const handleEquip = useCallback(
     async (itemId: string, slot: string) => {
       await equipItem(itemId, slot);
@@ -741,6 +917,22 @@ function InventoryScreen() {
               totalSpd += (item.stats.speed ?? 0) * mult;
               totalCrit += (item.stats.critRate ?? 0) * mult;
               totalCritDmg += (item.stats.critDamage ?? 0) * mult;
+            }
+
+            // Add socketed gem stats to totals
+            for (const id of equippedIds) {
+              const sockets = saveData.socketedGems?.[id] ?? [];
+              for (const gemId of sockets) {
+                const gem = GEMS.find((g) => g.id === gemId);
+                if (!gem) continue;
+                if (gem.stat === 'attack') totalAtk += gem.value;
+                else if (gem.stat === 'defense') totalDef += gem.value;
+                else if (gem.stat === 'hp') totalHp += gem.value;
+                else if (gem.stat === 'mp') totalMp += gem.value;
+                else if (gem.stat === 'speed') totalSpd += gem.value;
+                else if (gem.stat === 'critRate') totalCrit += gem.value;
+                else if (gem.stat === 'critDamage') totalCritDmg += gem.value;
+              }
             }
 
             // Set bonuses
@@ -909,6 +1101,10 @@ function InventoryScreen() {
           const rate = target <= 5 ? 50 : Math.max(5, 50 - (target - 5) * 1.5);
           return { cost, rate };
         })()}
+        socketedGems={selectedItem ? (saveData?.socketedGems?.[selectedItem.data.id] ?? []) : []}
+        playerGems={totalGems}
+        onSocket={handleSocketGem}
+        onUnsocket={handleUnsocketGem}
         onGoldEnhance={async (itemId) => {
           try {
             const res = await axios.post('/api/inventory/enhance-gold', { itemId });
@@ -937,6 +1133,10 @@ function InventoryScreen() {
         slot={selectedEquipSlot}
         onUnequip={handleUnequip}
         gold={totalGold}
+        socketedGems={selectedEquipSlot?.data ? (saveData?.socketedGems?.[selectedEquipSlot.data.id] ?? []) : []}
+        playerGems={totalGems}
+        onSocket={handleSocketGem}
+        onUnsocket={handleUnsocketGem}
         onGoldEnhance={async (itemId) => {
           try {
             const res = await axios.post('/api/inventory/enhance-gold', { itemId });
