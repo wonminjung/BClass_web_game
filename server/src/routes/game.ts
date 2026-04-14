@@ -145,8 +145,8 @@ router.post('/prestige', (req: Request, res: Response): void => {
     // Calculate artifact bonuses for prestige
     const arts = saveData.artifacts ?? {};
     const gemBoostPercent = (arts['art_gem'] ?? 0) * 10;       // 10% per level
-    const levelKeepPercent = (arts['art_level_keep'] ?? 0) * 5; // 5% per level, max 50%
-    const abyssKeepPercent = (arts['art_abyss_keep'] ?? 0) * 5; // 5% per level, max 50%
+    const levelKeepPercent = Math.min(50, (arts['art_level_keep'] ?? 0) * 2.5); // 2.5% per level, cap 50%
+    const abyssKeepPercent = Math.min(50, (arts['art_abyss_keep'] ?? 0) * 2.5); // 2.5% per level, cap 50%
 
     // Calculate gem reward BEFORE resetting
     const currentLevel = saveData.level;

@@ -55,13 +55,13 @@ export const ARTIFACTS: Artifact[] = [
     effectType: 'gemPercent', effectUnit: '%',
   },
   {
-    id: 'art_level_keep', name: '기억의 수정', description: '환생 후 레벨 일부 유지',
-    icon: '\uD83E\uDDE0', maxLevel: 20, costPerLevel: linear(40), effectPerLevel: 5,
+    id: 'art_level_keep', name: '기억의 수정', description: '환생 후 레벨 일부 유지 (최대 50%)',
+    icon: '\uD83E\uDDE0', maxLevel: 20, costPerLevel: linear(40), effectPerLevel: 2.5,
     effectType: 'prestigeLevelKeep', effectUnit: '%',
   },
   {
-    id: 'art_abyss_keep', name: '심연의 닻', description: '환생 후 심연 진행도 일부 유지',
-    icon: '\u2693', maxLevel: 20, costPerLevel: linear(40), effectPerLevel: 5,
+    id: 'art_abyss_keep', name: '심연의 닻', description: '환생 후 심연 진행도 일부 유지 (최대 50%)',
+    icon: '\u2693', maxLevel: 20, costPerLevel: linear(40), effectPerLevel: 2.5,
     effectType: 'prestigeAbyssKeep', effectUnit: '%',
   },
 ];
