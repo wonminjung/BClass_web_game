@@ -144,6 +144,7 @@ function BattleScreen() {
   const autoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const handleSkillSelectRef = useRef<(skillId: string) => Promise<void>>();
   const handleNextFloorRef = useRef<() => void>();
+  const autoNextFloorCalled = useRef(false);
   const useBattleItemRef = useRef(useBattleItem);
   useBattleItemRef.current = useBattleItem;
 
@@ -314,6 +315,7 @@ function BattleScreen() {
   }, [resetBattle, navigate]);
 
   const handleNextFloor = useCallback(() => {
+    autoNextFloorCalled.current = false;
     setSelectedTargetId(null);
     resetBattle();
     startAbyssBattle();
@@ -344,9 +346,12 @@ function BattleScreen() {
         return;
       }
 
-      // On victory in abyss mode, auto-progress to next floor
+      // On victory in abyss mode, auto-progress to next floor (once)
       if (battle.status === 'victory' && isAbyssMode) {
-        handleNextFloorRef.current?.();
+        if (!autoNextFloorCalled.current) {
+          autoNextFloorCalled.current = true;
+          handleNextFloorRef.current?.();
+        }
         return;
       }
 
