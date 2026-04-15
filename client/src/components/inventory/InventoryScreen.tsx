@@ -532,6 +532,7 @@ function EquippedDetailModal({
   slot,
   onUnequip,
   gold,
+  gems,
   onGoldEnhance,
   socketedGems,
   playerGems,
@@ -547,6 +548,7 @@ function EquippedDetailModal({
   slot: EquippedSlotInfo | null;
   onUnequip: (slotName: string) => void;
   gold: number;
+  gems: number;
   onGoldEnhance: (itemId: string) => void;
   socketedGems: string[];
   playerGems: number;
@@ -636,11 +638,11 @@ function EquippedDetailModal({
             <Button
               variant="primary"
               size="sm"
-              disabled={gold < enhanceCostGold}
+              disabled={gems < enhanceCostGold}
               onClick={() => onGoldEnhance(slot.data!.id)}
               className="w-full"
             >
-              {gold < enhanceCostGold ? '젬 부족' : '젬 강화'}
+              {gems < enhanceCostGold ? '젬 부족' : '젬 강화'}
             </Button>
           </div>
         )}
@@ -735,6 +737,7 @@ function ItemDetailModal({
   onGoldEnhance,
   goldEnhanceInfo,
   gold,
+  gems,
   socketedGems,
   playerGems,
   onSocket,
@@ -756,6 +759,7 @@ function ItemDetailModal({
   onGoldEnhance: (itemId: string) => void;
   goldEnhanceInfo: { cost: number; rate: number } | null;
   gold: number;
+  gems: number;
   socketedGems: string[];
   playerGems: number;
   onSocket: (itemId: string, gemId: string) => void;
@@ -888,11 +892,11 @@ function ItemDetailModal({
             <Button
               variant="primary"
               size="sm"
-              disabled={gold < goldEnhanceInfo.cost}
+              disabled={gems < goldEnhanceInfo.cost}
               onClick={() => onGoldEnhance(item.id)}
               className="w-full"
             >
-              {gold < goldEnhanceInfo.cost ? '젬 부족' : '젬 강화'}
+              {gems < goldEnhanceInfo.cost ? '젬 부족' : '젬 강화'}
             </Button>
           </div>
         )}
@@ -1353,7 +1357,8 @@ function InventoryScreen() {
         onUse={useItem}
         onEquip={handleEquip}
         onSell={(itemId) => { sellItem(itemId, 1); }}
-        gold={totalGems}
+        gold={totalGold}
+        gems={totalGems}
         goldEnhanceInfo={(() => {
           if (!selectedItem) return null;
           const rarity = selectedItem.data.rarity;
@@ -1410,7 +1415,8 @@ function InventoryScreen() {
         onClose={handleCloseEquipped}
         slot={selectedEquipSlot}
         onUnequip={handleUnequip}
-        gold={totalGems}
+        gold={totalGold}
+        gems={totalGems}
         socketedGems={selectedEquipSlot?.data ? (saveData?.socketedGems?.[selectedEquipSlot.data.id] ?? []) : []}
         playerGems={totalGems}
         onSocket={handleSocketGem}
