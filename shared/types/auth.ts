@@ -44,6 +44,7 @@ export interface SaveData {
   dualPetUnlocked?: boolean;
   extraSkillSlot?: boolean;
   critOverflow?: boolean;
+  equippedSkills?: string[];  // equipped skill IDs (max 5, or 6 with milestone)
   createdAt: string;
   lastPlayedAt: string;
 }

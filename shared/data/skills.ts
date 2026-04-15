@@ -32,6 +32,57 @@ export const SKILLS: Skill[] = [
     manaCost: 0, cooldown: 0, damageMultiplier: 0, healMultiplier: 0,
     statusEffect: { type: 'defense_up', duration: 0, value: 20 }, animation: 'buff',
   },
+  // Dark Knight - new skills
+  {
+    id: 'dk_blood_oath', name: '피의 맹세', description: 'HP 20% 소모, 공격력 50% 증가 3턴',
+    characterId: 'dark_knight', type: 'active', targetType: 'self', iconUrl: '',
+    manaCost: 25, cooldown: 4, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'attack_up', duration: 3, value: 50 }, animation: 'dark',
+    unlockLevel: 50,
+  },
+  {
+    id: 'dk_taunt', name: '도발', description: '적 전체 공격력 20% 감소 3턴',
+    characterId: 'dark_knight', type: 'active', targetType: 'all_enemies', iconUrl: '',
+    manaCost: 20, cooldown: 3, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'defense_down', duration: 3, value: 20 }, animation: 'dark',
+    unlockLevel: 100,
+  },
+  {
+    id: 'dk_immortal', name: '불멸의 의지', description: '3턴간 대규모 보호막',
+    characterId: 'dark_knight', type: 'active', targetType: 'self', iconUrl: '',
+    manaCost: 40, cooldown: 6, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'shield', duration: 3, value: 9999 }, animation: 'buff',
+    unlockLevel: 150,
+  },
+  {
+    id: 'dk_earth_shatter', name: '대지 분쇄', description: '전체 공격 + 느려지는 대지의 힘',
+    characterId: 'dark_knight', type: 'active', targetType: 'all_enemies', iconUrl: '',
+    manaCost: 35, cooldown: 3, damageMultiplier: 1.8, healMultiplier: 0,
+    statusEffect: null, animation: 'slash',
+    unlockLevel: 200,
+  },
+  {
+    id: 'dk_soul_devour', name: '영혼 포식', description: '강력한 단일 공격 + 피해의 30% 흡혈',
+    characterId: 'dark_knight', type: 'active', targetType: 'single_enemy', iconUrl: '',
+    manaCost: 30, cooldown: 3, damageMultiplier: 2.0, healMultiplier: 0,
+    statusEffect: null, animation: 'dark',
+    special: 'lifesteal_30',
+    unlockLevel: 250,
+  },
+  {
+    id: 'dk_chain_bind', name: '사슬 속박', description: '2턴 기절',
+    characterId: 'dark_knight', type: 'active', targetType: 'single_enemy', iconUrl: '',
+    manaCost: 25, cooldown: 4, damageMultiplier: 0.5, healMultiplier: 0,
+    statusEffect: { type: 'stun', duration: 2, value: 0 }, animation: 'dark',
+    unlockLevel: 300,
+  },
+  {
+    id: 'dk_dark_explosion', name: '암흑 폭발', description: '강력한 전체 암흑 폭발',
+    characterId: 'dark_knight', type: 'active', targetType: 'all_enemies', iconUrl: '',
+    manaCost: 50, cooldown: 5, damageMultiplier: 2.2, healMultiplier: 0,
+    statusEffect: null, animation: 'dark',
+    unlockLevel: 350,
+  },
 
   // ── 모르가나 (Shadow Mage) ──
   {
@@ -63,6 +114,57 @@ export const SKILLS: Skill[] = [
     characterId: 'shadow_mage', type: 'passive', targetType: 'single_enemy', iconUrl: '/assets/skills/nightmare.png',
     manaCost: 0, cooldown: 0, damageMultiplier: 0, healMultiplier: 0,
     statusEffect: { type: 'stun', duration: 1, value: 15 }, animation: 'dark',
+  },
+  // Shadow Mage - new skills
+  {
+    id: 'sm_meteor', name: '메테오', description: '거대한 화염 폭격',
+    characterId: 'shadow_mage', type: 'active', targetType: 'all_enemies', iconUrl: '',
+    manaCost: 60, cooldown: 5, damageMultiplier: 2.5, healMultiplier: 0,
+    statusEffect: { type: 'burn', duration: 2, value: 10 }, animation: 'fire',
+    unlockLevel: 50,
+  },
+  {
+    id: 'sm_mana_shield', name: '마나 실드', description: '마력으로 보호막 생성',
+    characterId: 'shadow_mage', type: 'active', targetType: 'self', iconUrl: '',
+    manaCost: 30, cooldown: 5, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'shield', duration: 3, value: 5000 }, animation: 'magic',
+    unlockLevel: 100,
+  },
+  {
+    id: 'sm_chain_lightning', name: '연쇄 번개', description: '적 전체를 번개로 타격',
+    characterId: 'shadow_mage', type: 'active', targetType: 'all_enemies', iconUrl: '',
+    manaCost: 40, cooldown: 3, damageMultiplier: 1.6, healMultiplier: 0,
+    statusEffect: null, animation: 'magic',
+    unlockLevel: 150,
+  },
+  {
+    id: 'sm_time_stop', name: '시간 정지', description: '적 전체 1턴 행동불가',
+    characterId: 'shadow_mage', type: 'active', targetType: 'all_enemies', iconUrl: '',
+    manaCost: 50, cooldown: 6, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'stun', duration: 1, value: 0 }, animation: 'ice',
+    unlockLevel: 200,
+  },
+  {
+    id: 'sm_void_drain', name: '공허 흡수', description: '적 공격 + HP 일부 회복',
+    characterId: 'shadow_mage', type: 'active', targetType: 'single_enemy', iconUrl: '',
+    manaCost: 20, cooldown: 2, damageMultiplier: 1.5, healMultiplier: 0.3,
+    statusEffect: null, animation: 'dark',
+    unlockLevel: 250,
+  },
+  {
+    id: 'sm_curse', name: '저주', description: '적 방어력 30% 감소 3턴',
+    characterId: 'shadow_mage', type: 'active', targetType: 'single_enemy', iconUrl: '',
+    manaCost: 25, cooldown: 3, damageMultiplier: 0.5, healMultiplier: 0,
+    statusEffect: { type: 'defense_down', duration: 3, value: 30 }, animation: 'dark',
+    unlockLevel: 300,
+  },
+  {
+    id: 'sm_mana_charge', name: '마력 충전', description: 'MP 50% 즉시 회복',
+    characterId: 'shadow_mage', type: 'active', targetType: 'self', iconUrl: '',
+    manaCost: 0, cooldown: 4, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: null, animation: 'magic',
+    special: 'mana_restore_50',
+    unlockLevel: 350,
   },
 
   // ── 아스트라 (Hunter) ──
@@ -96,6 +198,57 @@ export const SKILLS: Skill[] = [
     manaCost: 30, cooldown: 5, damageMultiplier: 3.0, healMultiplier: 0,
     statusEffect: null, animation: 'arrow',
   },
+  // Hunter - new skills
+  {
+    id: 'hn_rapid_fire', name: '연사', description: '3~5회 연속 사격',
+    characterId: 'hunter', type: 'active', targetType: 'single_enemy', iconUrl: '',
+    manaCost: 25, cooldown: 2, damageMultiplier: 0.6, healMultiplier: 0,
+    statusEffect: null, animation: 'arrow',
+    special: 'multi_hit_3_5',
+    unlockLevel: 50,
+  },
+  {
+    id: 'hn_evasion', name: '회피 기동', description: '2턴 방어 대폭 증가',
+    characterId: 'hunter', type: 'active', targetType: 'self', iconUrl: '',
+    manaCost: 20, cooldown: 4, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'defense_up', duration: 2, value: 50 }, animation: 'buff',
+    unlockLevel: 100,
+  },
+  {
+    id: 'hn_explosive_arrow', name: '폭발 화살', description: '화염 화살로 전체 공격 + 화상',
+    characterId: 'hunter', type: 'active', targetType: 'all_enemies', iconUrl: '',
+    manaCost: 35, cooldown: 3, damageMultiplier: 1.6, healMultiplier: 0,
+    statusEffect: { type: 'burn', duration: 2, value: 8 }, animation: 'fire',
+    unlockLevel: 150,
+  },
+  {
+    id: 'hn_weakness', name: '약점 간파', description: '3턴 공격력 30% 증가 + 크리 확률 증가',
+    characterId: 'hunter', type: 'active', targetType: 'self', iconUrl: '',
+    manaCost: 20, cooldown: 5, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'attack_up', duration: 3, value: 30 }, animation: 'buff',
+    unlockLevel: 200,
+  },
+  {
+    id: 'hn_snare', name: '올가미', description: '2턴 기절',
+    characterId: 'hunter', type: 'active', targetType: 'single_enemy', iconUrl: '',
+    manaCost: 15, cooldown: 3, damageMultiplier: 0.3, healMultiplier: 0,
+    statusEffect: { type: 'stun', duration: 2, value: 0 }, animation: 'arrow',
+    unlockLevel: 250,
+  },
+  {
+    id: 'hn_snipe', name: '저격', description: '극한의 단일 초고배율 공격',
+    characterId: 'hunter', type: 'active', targetType: 'single_enemy', iconUrl: '',
+    manaCost: 40, cooldown: 7, damageMultiplier: 4.0, healMultiplier: 0,
+    statusEffect: null, animation: 'arrow',
+    unlockLevel: 300,
+  },
+  {
+    id: 'hn_beast_instinct', name: '야수의 본능 (패시브)', description: '속도 15% 증가',
+    characterId: 'hunter', type: 'passive', targetType: 'self', iconUrl: '',
+    manaCost: 0, cooldown: 0, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: null, animation: 'buff',
+    unlockLevel: 350,
+  },
 
   // ── 세라핌 (Priest) ──
   {
@@ -128,6 +281,57 @@ export const SKILLS: Skill[] = [
     manaCost: 0, cooldown: 0, damageMultiplier: 0, healMultiplier: 0.03,
     statusEffect: { type: 'regen', duration: 0, value: 3 }, animation: 'heal',
   },
+  // Priest - new skills
+  {
+    id: 'pr_great_heal', name: '대치유', description: '대규모 HP 회복',
+    characterId: 'priest', type: 'active', targetType: 'self', iconUrl: '',
+    manaCost: 50, cooldown: 6, damageMultiplier: 0, healMultiplier: 5.0,
+    statusEffect: null, animation: 'heal',
+    unlockLevel: 50,
+  },
+  {
+    id: 'pr_blessing', name: '축복', description: '공격력/방어력 20% 증가 3턴',
+    characterId: 'priest', type: 'active', targetType: 'self', iconUrl: '',
+    manaCost: 30, cooldown: 4, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'attack_up', duration: 3, value: 20 }, animation: 'buff',
+    unlockLevel: 100,
+  },
+  {
+    id: 'pr_retribution', name: '응징', description: '강력한 신성 공격',
+    characterId: 'priest', type: 'active', targetType: 'single_enemy', iconUrl: '',
+    manaCost: 35, cooldown: 4, damageMultiplier: 3.0, healMultiplier: 0,
+    statusEffect: null, animation: 'magic',
+    unlockLevel: 150,
+  },
+  {
+    id: 'pr_divine_shield_2', name: '신의 보호막', description: '5턴 대규모 보호막',
+    characterId: 'priest', type: 'active', targetType: 'self', iconUrl: '',
+    manaCost: 40, cooldown: 5, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'shield', duration: 5, value: 8000 }, animation: 'buff',
+    unlockLevel: 200,
+  },
+  {
+    id: 'pr_purifying_light', name: '정화의 빛', description: '전체 신성 공격',
+    characterId: 'priest', type: 'active', targetType: 'all_enemies', iconUrl: '',
+    manaCost: 35, cooldown: 3, damageMultiplier: 1.5, healMultiplier: 0,
+    statusEffect: null, animation: 'magic',
+    unlockLevel: 250,
+  },
+  {
+    id: 'pr_resurrection', name: '부활 기도', description: '5턴간 매턴 HP 10% 회복',
+    characterId: 'priest', type: 'active', targetType: 'self', iconUrl: '',
+    manaCost: 60, cooldown: 8, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'regen', duration: 5, value: 10 }, animation: 'heal',
+    special: 'regen_percent',
+    unlockLevel: 300,
+  },
+  {
+    id: 'pr_holy_ground', name: '성스러운 땅', description: '3턴간 턴마다 HP 15% 회복',
+    characterId: 'priest', type: 'active', targetType: 'self', iconUrl: '',
+    manaCost: 30, cooldown: 4, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'regen', duration: 3, value: 15 }, animation: 'heal',
+    unlockLevel: 350,
+  },
 
   // ── 제로 (Assassin) ──
   {
@@ -159,6 +363,59 @@ export const SKILLS: Skill[] = [
     characterId: 'assassin', type: 'passive', targetType: 'single_enemy', iconUrl: '/assets/skills/death_mark.png',
     manaCost: 0, cooldown: 0, damageMultiplier: 0.4, healMultiplier: 0,
     statusEffect: null, animation: 'dark',
+  },
+  // Assassin - new skills
+  {
+    id: 'as_shadow_strike', name: '그림자 습격', description: '강력한 기습 공격',
+    characterId: 'assassin', type: 'active', targetType: 'single_enemy', iconUrl: '',
+    manaCost: 30, cooldown: 4, damageMultiplier: 3.5, healMultiplier: 0,
+    statusEffect: null, animation: 'slash',
+    unlockLevel: 50,
+  },
+  {
+    id: 'as_smoke_bomb', name: '연막탄', description: '적 방어력 25% 감소 2턴',
+    characterId: 'assassin', type: 'active', targetType: 'all_enemies', iconUrl: '',
+    manaCost: 25, cooldown: 4, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'defense_down', duration: 2, value: 25 }, animation: 'dark',
+    unlockLevel: 100,
+  },
+  {
+    id: 'as_frenzy', name: '급소 난타', description: '5회 연속 급소 공격',
+    characterId: 'assassin', type: 'active', targetType: 'single_enemy', iconUrl: '',
+    manaCost: 35, cooldown: 3, damageMultiplier: 0.5, healMultiplier: 0,
+    statusEffect: null, animation: 'slash',
+    special: 'multi_hit_5_crit',
+    unlockLevel: 150,
+  },
+  {
+    id: 'as_execute', name: '암살', description: '적 HP 20% 이하 시 즉사 (보스 면역)',
+    characterId: 'assassin', type: 'active', targetType: 'single_enemy', iconUrl: '',
+    manaCost: 50, cooldown: 8, damageMultiplier: 5.0, healMultiplier: 0,
+    statusEffect: null, animation: 'slash',
+    special: 'execute_20',
+    unlockLevel: 200,
+  },
+  {
+    id: 'as_poison_burst', name: '독 폭발', description: '독 걸린 적에게 추가 데미지',
+    characterId: 'assassin', type: 'active', targetType: 'all_enemies', iconUrl: '',
+    manaCost: 40, cooldown: 4, damageMultiplier: 2.0, healMultiplier: 0,
+    statusEffect: null, animation: 'dark',
+    special: 'poison_burst',
+    unlockLevel: 250,
+  },
+  {
+    id: 'as_shadow_clone', name: '그림자 분신', description: '분신 소환, 3턴 공격력 40% 증가',
+    characterId: 'assassin', type: 'active', targetType: 'self', iconUrl: '',
+    manaCost: 35, cooldown: 5, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: { type: 'attack_up', duration: 3, value: 40 }, animation: 'dark',
+    unlockLevel: 300,
+  },
+  {
+    id: 'as_lethal_weakness', name: '치명적 약점 (패시브)', description: '크리티컬 데미지 20% 증가',
+    characterId: 'assassin', type: 'passive', targetType: 'self', iconUrl: '',
+    manaCost: 0, cooldown: 0, damageMultiplier: 0, healMultiplier: 0,
+    statusEffect: null, animation: 'dark',
+    unlockLevel: 350,
   },
 
   // ── 공통 스킬 (모든 캐릭터) ──

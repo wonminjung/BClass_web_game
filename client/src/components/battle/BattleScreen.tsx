@@ -387,9 +387,14 @@ function BattleScreen() {
       const playerMp = battle.player.currentMp;
       const skillStates = state.skillStates;
       const charId = saveData?.characterId;
+      const equipped = saveData?.equippedSkills;
       const availableSkills = SKILLS
         .filter((s) => (s.characterId === charId || s.characterId === 'common') && s.type !== 'passive')
         .filter((s) => {
+          // Filter by equipped skills if set
+          if (equipped && equipped.length > 0) {
+            if (s.id !== 'common_basic_attack' && !equipped.includes(s.id)) return false;
+          }
           const ss = skillStates.find((st) => st.skillId === s.id);
           const onCooldown = ss ? ss.currentCooldown > 0 : false;
           return !onCooldown && s.manaCost <= playerMp;
@@ -701,6 +706,7 @@ function BattleScreen() {
             skillStates={getSkillStates()}
             currentMp={battleState.player.currentMp}
             onSkillSelect={handleSkillSelect}
+            equippedSkillIds={saveData?.equippedSkills}
           />
         </div>
 

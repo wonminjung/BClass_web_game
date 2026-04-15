@@ -680,4 +680,92 @@ router.post(
   },
 );
 
+// ── POST /equip-skills ─────────────────────────────────────
+router.post(
+  '/equip-skills',
+  validate([{ name: 'skillIds', type: 'object' }]),
+  (req: Request, res: Response): void => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.status(401).json({ success: false, message: 'Missing authorization' });
+        return;
+      }
+      const token = authHeader.slice(7);
+      const saveCode = AuthService.verifyToken(token);
+      if (!saveCode) {
+        res.status(401).json({ success: false, message: 'Invalid or expired token' });
+        return;
+      }
+
+      const saveData = AuthService.getSaveData(saveCode);
+      if (!saveData) {
+        res.status(404).json({ success: false, message: 'Save data not found' });
+        return;
+      }
+
+      const { skillIds } = req.body;
+      if (!Array.isArray(skillIds)) {
+        res.status(400).json({ success: false, message: 'skillIds must be an array' });
+        return;
+      }
+
+      // Max slots: 5 normally, 6 if extraSkillSlot milestone unlocked
+      const maxSlots = saveData.extraSkillSlot ? 6 : 5;
+      if (skillIds.length > maxSlots) {
+        res.status(400).json({ success: false, message: `최대 ${maxSlots}개의 스킬만 장착할 수 있습니다` });
+        return;
+      }
+
+      // Validate each skill
+      for (const sid of skillIds) {
+        if (typeof sid !== 'string') {
+          res.status(400).json({ success: false, message: 'Invalid skill ID' });
+          return;
+        }
+
+        const skill = SKILLS.find((s) => s.id === sid);
+        if (!skill) {
+          res.status(400).json({ success: false, message: `스킬을 찾을 수 없습니다: ${sid}` });
+          return;
+        }
+
+        // Must belong to character's class or be common
+        if (skill.characterId !== saveData.characterId && skill.characterId !== 'common') {
+          res.status(400).json({ success: false, message: `이 스킬은 현재 캐릭터의 스킬이 아닙니다: ${skill.name}` });
+          return;
+        }
+
+        // Must be active type (passives auto-apply)
+        if (skill.type !== 'active') {
+          res.status(400).json({ success: false, message: `패시브 스킬은 장착할 수 없습니다: ${skill.name}` });
+          return;
+        }
+
+        // Must be unlocked (unlockLevel <= saveData.level)
+        const unlockLevel = skill.unlockLevel ?? 1;
+        if (saveData.level < unlockLevel) {
+          res.status(400).json({ success: false, message: `스킬이 아직 해금되지 않았습니다: ${skill.name} (Lv.${unlockLevel} 필요)` });
+          return;
+        }
+      }
+
+      // Check for duplicates
+      const uniqueIds = new Set(skillIds);
+      if (uniqueIds.size !== skillIds.length) {
+        res.status(400).json({ success: false, message: '같은 스킬을 중복 장착할 수 없습니다' });
+        return;
+      }
+
+      saveData.equippedSkills = skillIds;
+      AuthService.saveProgress(saveCode, saveData);
+
+      res.json({ success: true, saveData });
+    } catch (err) {
+      console.error('[game/equip-skills]', err);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  },
+);
+
 export default router;

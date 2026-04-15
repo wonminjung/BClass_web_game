@@ -47,6 +47,7 @@ const battlePetMap = new Map<string, { name: string; attack: number; level: numb
 const battleEquippedMap = new Map<string, string[]>();
 const battleKeystoneMap = new Map<string, { id: string; ratio: number }[]>(); // keystone specials with ratio
 const battleUndyingUsed = new Map<string, boolean>(); // track undying proc per battle
+const battleEquippedSkillsMap = new Map<string, string[]>(); // equipped skill IDs from saveData
 const battleProcState = new Map<string, {
   cooldowns: Record<string, number>;
   activeBuffs: { type: string; value: number; remainingTurns: number }[];
@@ -261,6 +262,7 @@ export function initBattle(
   battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
   battleKeystoneMap.set(battleState.id, totalStats.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
   battleUndyingUsed.set(battleState.id, false);
+  battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
 
   return { battleState, skillStates, waveIndex, totalWaves: dungeon.waves.length };
 }
@@ -381,6 +383,14 @@ export function executePlayerAction(
   const skill = SKILLS.find((s) => s.id === skillId);
   if (!skill) return { error: 'Skill not found' };
 
+  // Check equipped skills (if set and non-empty, only allow equipped skills + basic attack)
+  const equippedSkills = battleEquippedSkillsMap.get(battleState.id);
+  if (equippedSkills && equippedSkills.length > 0) {
+    if (skillId !== 'common_basic_attack' && !equippedSkills.includes(skillId)) {
+      return { error: '장착되지 않은 스킬입니다' };
+    }
+  }
+
   // Mana check
   if (player.currentMp < skill.manaCost) {
     return { error: 'MP가 부족합니다' };
@@ -478,11 +488,173 @@ export function executePlayerAction(
     }
   }
 
+  // ── Special: mana_restore_50 — restore 50% of max MP instead of normal action ──
+  if (skill.special === 'mana_restore_50') {
+    const restored = Math.round(player.maxMp * 0.5);
+    player.currentMp = Math.min(player.maxMp, player.currentMp + restored);
+    battleState.log.push({ turn: battleState.turn, message: `${player.name}의 ${skill.name} → MP ${restored} 회복!`, type: 'heal' });
+    results.push({
+      actionType: 'skill',
+      actorId: player.id,
+      targetId: player.id,
+      damage: 0,
+      heal: 0,
+      isCritical: false,
+      statusApplied: null,
+      targetDefeated: false,
+    });
+    // Apply status effect if any
+    if (skill.statusEffect) {
+      const activeEffect: ActiveStatusEffect = {
+        type: skill.statusEffect.type,
+        remainingTurns: skill.statusEffect.duration,
+        value: skill.statusEffect.value,
+      };
+      player.statusEffects.push(activeEffect);
+    }
+  } else {
+  // ── Normal + special damage handling ──
+  const _skill = skill; // capture for nested function (TS narrowing)
+
+  // Helper: perform one hit of damage calculation with all bonuses
+  function performSingleHit(
+    hitTarget: BattleFighter,
+    forceCrit: boolean | null, // null = roll, true = guaranteed crit, false = no crit
+  ): { hitDamage: number; hitIsCrit: boolean } {
+    const hitIsCrit = forceCrit !== null ? forceCrit : Math.random() < (baseCritRate + procCritBoost);
+
+    const keystones = battleKeystoneMap.get(battleState.id) ?? [];
+    const getKR = (id: string) => keystones.find(k => k.id === id)?.ratio ?? 0;
+
+    const skillLevel = battleSkillLevelMap.get(battleState.id)?.[skillId] ?? 0;
+    const effectiveMultiplier = _skill.damageMultiplier * (1 + skillLevel * 0.05);
+
+    let effectiveDef = getEffectiveDefense(hitTarget);
+    const penRatio = getKR('masterPenetration');
+    if (penRatio > 0) {
+      const ignored = Math.round(effectiveDef * 0.4 * penRatio);
+      effectiveDef -= ignored;
+    }
+
+    let manaBonus = 1;
+    const manaRatio = getKR('manaOverload');
+    if (manaRatio > 0 && player.maxMp > 0) {
+      manaBonus = 1 + (player.currentMp / player.maxMp) * manaRatio;
+    }
+
+    let hitDamage = calculateDamage(getEffectiveAttack(player), effectiveDef, effectiveMultiplier * manaBonus, hitIsCrit, baseCritDmg);
+
+    const execRatio = getKR('executioner');
+    if (execRatio > 0 && hitTarget.currentHp / hitTarget.maxHp <= 0.3) {
+      hitDamage = Math.round(hitDamage * (1 + execRatio));
+    }
+
+    const talentBonuses = battleTalentMap.get(battleState.id);
+    if (talentBonuses && talentBonuses.totalDmgPercent > 0) {
+      hitDamage = Math.round(hitDamage * (1 + talentBonuses.totalDmgPercent / 100));
+    }
+
+    const setActives = battleSetActiveMap.get(battleState.id) ?? [];
+    for (const sa of setActives) {
+      if (sa && sa.type === 'bonus_damage' && Math.random() < (sa.chance ?? 0)) {
+        hitDamage += Math.round(hitDamage * sa.value / 100);
+      }
+    }
+
+    return { hitDamage, hitIsCrit };
+  }
+
+  // Determine if this is a multi-hit special
+  let multiHitCount = 0;
+  let multiHitForceCrit = false;
+  if (skill.special === 'multi_hit_3_5') {
+    multiHitCount = 3 + Math.floor(Math.random() * 3); // 3-5 hits
+  } else if (skill.special === 'multi_hit_5_crit') {
+    multiHitCount = 5;
+    multiHitForceCrit = true;
+  }
+
   for (const target of targets) {
     const isCrit = Math.random() < (baseCritRate + procCritBoost);
     let damage = 0;
     let heal = 0;
 
+    // ── Special: execute_20 — instant kill if target HP <= 20% (non-boss) ──
+    if (skill.special === 'execute_20' && target.id !== 'player') {
+      const isBoss = target.name.includes('보스') || (target.monsterId ?? '').includes('boss');
+      if (!isBoss && target.currentHp / target.maxHp <= 0.2) {
+        damage = target.currentHp;
+        target.currentHp = 0;
+        target.isAlive = false;
+        battleState.log.push({ turn: battleState.turn, message: `[처형] ${target.name} 즉사! (HP 20% 이하)`, type: 'damage' });
+        if (battleState.stats) battleState.stats.totalDamageDealt += damage;
+        results.push({
+          actionType: 'skill', actorId: player.id, targetId: target.id,
+          damage, heal: 0, isCritical: false, statusApplied: null, targetDefeated: true,
+        });
+        battleState.log.push({ turn: battleState.turn, message: `${target.name} 처치!`, type: 'defeat' });
+        continue; // skip normal damage for this target
+      }
+      // Otherwise fall through to normal damage
+    }
+
+    // ── Special: poison_burst — 3x damage if target has poison ──
+    let poisonBurstMultiplier = 1;
+    if (skill.special === 'poison_burst' && target.id !== 'player') {
+      if (target.statusEffects.some(e => e.type === 'poison')) {
+        poisonBurstMultiplier = 3;
+        battleState.log.push({ turn: battleState.turn, message: `[독 폭발] ${target.name}의 독이 폭발! 피해 3배!`, type: 'buff' });
+      }
+    }
+
+    // ── Multi-hit specials ──
+    if (multiHitCount > 0 && skill.damageMultiplier > 0 && target.id !== 'player') {
+      let totalMultiDmg = 0;
+      for (let hitIdx = 0; hitIdx < multiHitCount; hitIdx++) {
+        if (!target.isAlive) break;
+        const { hitDamage, hitIsCrit } = performSingleHit(target, multiHitForceCrit ? true : null);
+        const finalHitDmg = Math.round(hitDamage * poisonBurstMultiplier);
+        target.currentHp = Math.max(0, target.currentHp - finalHitDmg);
+        target.isAlive = target.currentHp > 0;
+        totalMultiDmg += finalHitDmg;
+        const critText = hitIsCrit ? ' (치명타!)' : '';
+        battleState.log.push({
+          turn: battleState.turn,
+          message: `${player.name}의 ${skill.name} [${hitIdx + 1}/${multiHitCount}] → ${target.name}에게 ${finalHitDmg} 데미지${critText}`,
+          type: 'damage',
+        });
+        if (battleState.stats) {
+          battleState.stats.totalDamageDealt += finalHitDmg;
+          if (hitIsCrit && finalHitDmg > battleState.stats.highestCrit) {
+            battleState.stats.highestCrit = finalHitDmg;
+          }
+        }
+      }
+      damage = totalMultiDmg;
+
+      // Lifesteal for multi-hit (special: lifesteal_30 not applicable here but keep vampire keystone)
+      const keystones = battleKeystoneMap.get(battleState.id) ?? [];
+      const vampRatio = (keystones.find(k => k.id === 'vampire')?.ratio ?? 0);
+      if (vampRatio > 0 && damage > 0) {
+        const vampHeal = Math.round(damage * 0.15 * vampRatio);
+        if (vampHeal > 0) {
+          player.currentHp = Math.min(player.maxHp, player.currentHp + vampHeal);
+          battleState.log.push({ turn: battleState.turn, message: `[흡혈귀] HP ${vampHeal.toLocaleString()} 회복`, type: 'heal' });
+        }
+      }
+
+      results.push({
+        actionType: 'skill', actorId: player.id, targetId: target.id,
+        damage, heal: 0, isCritical: false, statusApplied: null,
+        targetDefeated: !target.isAlive,
+      });
+      if (!target.isAlive) {
+        battleState.log.push({ turn: battleState.turn, message: `${target.name} 처치!`, type: 'defeat' });
+      }
+      continue; // skip normal single-hit path
+    }
+
+    // ── Normal single-hit damage ──
     // Damage (with buff effects + skill level bonus + keystone effects)
     if (skill.damageMultiplier > 0 && target.id !== 'player') {
       const keystones = battleKeystoneMap.get(battleState.id) ?? [];
@@ -509,6 +681,11 @@ export function executePlayerAction(
       }
 
       damage = calculateDamage(getEffectiveAttack(player), effectiveDef, effectiveMultiplier * manaBonus, isCrit, baseCritDmg);
+
+      // Apply poison_burst multiplier
+      if (poisonBurstMultiplier > 1) {
+        damage = Math.round(damage * poisonBurstMultiplier);
+      }
 
       // Keystone: executioner — 처형자: 적 HP 30% 이하일 때 데미지 증가 (최대 2배)
       const execRatio = getKR('executioner');
@@ -559,6 +736,13 @@ export function executePlayerAction(
         }
       }
 
+      // ── Special: lifesteal_30 — heal 30% of damage dealt ──
+      if (skill.special === 'lifesteal_30' && damage > 0) {
+        const lsHeal = Math.round(damage * 0.3);
+        player.currentHp = Math.min(player.maxHp, player.currentHp + lsHeal);
+        battleState.log.push({ turn: battleState.turn, message: `[흡혈] HP ${lsHeal.toLocaleString()} 회복 (피해의 30%)`, type: 'heal' });
+      }
+
       // Keystone: vampire — 흡혈귀: 흡혈 (최대 15%)
       const vampRatio = getKR('vampire');
       if (vampRatio > 0 && damage > 0) {
@@ -604,7 +788,12 @@ export function executePlayerAction(
 
     // Heal
     if (skill.healMultiplier > 0) {
-      heal = Math.round(player.attack * skill.healMultiplier);
+      // ── Special: regen_percent — heal based on % of max HP ──
+      if (skill.special === 'regen_percent' && skill.statusEffect) {
+        heal = Math.round(player.maxHp * (skill.statusEffect.value / 100));
+      } else {
+        heal = Math.round(player.attack * skill.healMultiplier);
+      }
       player.currentHp = Math.min(player.maxHp, player.currentHp + heal);
     }
 
@@ -667,6 +856,7 @@ export function executePlayerAction(
       });
     }
   }
+  } // end else (non-mana_restore_50)
 
   // Pet auto-attack
   const petInfo = battlePetMap.get(battleState.id);
@@ -1273,6 +1463,7 @@ export function removeBattle(id: string): void {
   battleWaveMap.delete(id);
   abyssFloorMap.delete(id);
   weeklyBossMap.delete(id);
+  battleEquippedSkillsMap.delete(id);
 }
 
 // ────────────────────────────────────────────────────────────
@@ -1432,6 +1623,7 @@ export function initAbyssBattle(
   battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
   battleKeystoneMap.set(battleState.id, totalStatsAbyss.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
   battleUndyingUsed.set(battleState.id, false);
+  battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
 
   return { battleState, skillStates, floor };
 }
@@ -1704,6 +1896,7 @@ export function initWeeklyBossBattle(
   battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
   battleKeystoneMap.set(battleState.id, totalStatsWb.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
   battleUndyingUsed.set(battleState.id, false);
+  battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
 
   return { battleState, skillStates };
 }
@@ -1843,6 +2036,7 @@ export function initPrestigeTrialBattle(
   battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
   battleKeystoneMap.set(battleState.id, totalStats.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
   battleUndyingUsed.set(battleState.id, false);
+  battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
 
   return { battleState, skillStates };
 }
