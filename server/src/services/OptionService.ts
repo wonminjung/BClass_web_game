@@ -45,7 +45,11 @@ function getOptionCount(rarity: string): number {
 }
 
 function rollValue(min: number, max: number): number {
-  const val = min + Math.random() * (max - min);
+  // Weighted toward lower values: square root distribution
+  // ~70% bottom half, ~25% upper half, ~5% top 10%
+  const r = Math.random();
+  const weighted = r * r; // squaring makes high values much rarer
+  const val = min + weighted * (max - min);
   return Math.round(val * 10) / 10;
 }
 

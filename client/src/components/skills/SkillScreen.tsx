@@ -190,7 +190,7 @@ function SkillScreen() {
           const maxLevel = saveData.level;
           const isMaxLevel = level >= maxLevel;
           const isPassive = skill.type === 'passive';
-          const nextCost = 100 + level * 10;
+          const nextCost = 500 + level * 50 + Math.floor(level * level * 0.5);
           const canAfford = gold >= nextCost;
           const levelBonus = level * 0.05;
           const effectiveMultiplier = skill.damageMultiplier > 0

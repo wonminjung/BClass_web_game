@@ -96,10 +96,11 @@ router.post(
         return;
       }
 
-      // Cost per level: 100 + level × 10 (linear scaling)
+      // Cost per level: 500 + level × 50 + level² × 0.5
       let totalCost = 0;
       for (let i = 0; i < amount; i++) {
-        totalCost += 100 + (currentLevel + i) * 10;
+        const lv = currentLevel + i;
+        totalCost += 500 + lv * 50 + Math.floor(lv * lv * 0.5);
       }
 
       if (saveData.gold < totalCost) {
