@@ -240,7 +240,7 @@ export const useCombatStore = create<CombatStoreState>((set, get) => ({
           levelUp: res.data.levelUp ?? null,
           isAnimating: false,
           abyssFloor: (res.data as any).floor ?? get().abyssFloor,
-          abyssNextFloor: (res.data as any).nextFloor ?? null,
+          abyssNextFloor: (res.data as any).nextFloor !== undefined ? (res.data as any).nextFloor : get().abyssNextFloor,
         });
         return res.data;
       } else {
