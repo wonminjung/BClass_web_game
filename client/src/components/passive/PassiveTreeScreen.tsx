@@ -617,7 +617,7 @@ export default function PassiveTreeScreen() {
           <div className="space-y-1.5">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">프리셋 저장</h3>
             {[0, 1, 2].map((slot) => {
-              const key = `passivePreset_${slot}`;
+              const key = `passivePreset_${saveData?.characterId ?? 'unknown'}_${slot}`;
               const saved = localStorage.getItem(key);
               const savedData: string[] | null = saved ? JSON.parse(saved) : null;
               const savedCount = savedData?.length ?? 0;
