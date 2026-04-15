@@ -14,6 +14,7 @@ import petsRouter from './routes/pets';
 import rankingRouter from './routes/ranking';
 import gachaRouter from './routes/gacha';
 import passiveRouter from './routes/passive';
+import pachinkoRouter from './routes/pachinko';
 
 // ────────────────────────────────────────────────────────────
 // App setup
@@ -62,6 +63,7 @@ app.use('/api/pets', petsRouter);
 app.use('/api/ranking', rankingRouter);
 app.use('/api/gacha', gachaRouter);
 app.use('/api/passive', passiveRouter);
+app.use('/api/pachinko', pachinkoRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

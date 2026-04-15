@@ -541,6 +541,11 @@ function HomeScreen() {
           <p className="text-lg font-bold text-rose-400">소환</p>
           <p className="text-xs text-gray-500 mt-1">신화 장비를 뽑으세요</p>
         </Card>
+        <Card hover onClick={() => navigate('/pachinko')} className="text-center py-6">
+          <div className="text-3xl mb-2 text-yellow-400">&#127920;</div>
+          <p className="text-lg font-bold">파칭코</p>
+          <p className="text-xs text-gray-500 mt-1">골드를 사용하세요</p>
+        </Card>
       </div>
     </div>
   );

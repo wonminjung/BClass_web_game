@@ -18,6 +18,7 @@ import ArtifactScreen from './components/artifacts/ArtifactScreen';
 import GachaScreen from './components/gacha/GachaScreen';
 import PassiveTreeScreen from './components/passive/PassiveTreeScreen';
 import PrestigeScreen from './components/prestige/PrestigeScreen';
+import PachinkoScreen from './components/pachinko/PachinkoScreen';
 
 function App() {
   const restoreSession = useAuthStore((s) => s.restoreSession);
@@ -48,6 +49,7 @@ function App() {
       <Route path="/gacha" element={<GachaScreen />} />
       <Route path="/passive" element={<PassiveTreeScreen />} />
       <Route path="/prestige" element={<PrestigeScreen />} />
+      <Route path="/pachinko" element={<PachinkoScreen />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </>
