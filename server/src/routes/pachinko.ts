@@ -98,7 +98,8 @@ router.post('/play', (req: Request, res: Response): void => {
       return;
     }
 
-    const { position, count } = req.body;
+    const { position } = req.body;
+    const count = Number(req.body.count);
 
     // Validate position
     if (!position || !['left', 'center', 'right'].includes(position)) {
@@ -107,13 +108,13 @@ router.post('/play', (req: Request, res: Response): void => {
     }
 
     // Validate count
-    if (!count || ![1, 10, 100].includes(count)) {
+    if (![1, 10, 100].includes(count)) {
       res.status(400).json({ success: false, message: '유효하지 않은 횟수입니다 (1/10/100)' });
       return;
     }
 
     // Calculate cost
-    const totalCost = COST_MAP[count as number];
+    const totalCost = COST_MAP[count];
 
     // Check gold
     if ((saveData.gold ?? 0) < totalCost) {
