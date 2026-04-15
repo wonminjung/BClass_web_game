@@ -1638,7 +1638,7 @@ export function calculateAbyssRewards(battleId: string, characterId: string): Ba
 
   // Base rewards scale with floor
   let totalExp = Math.floor(15000 * mult * 0.1);
-  let totalGold = Math.floor(15000 * mult * 0.1);
+  let totalGold = Math.floor(15000 * mult * 0.05);
   const items: { itemId: string; quantity: number }[] = [];
 
   function addDrop(itemId: string) {
