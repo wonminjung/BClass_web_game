@@ -145,6 +145,7 @@ function BattleScreen() {
   const handleSkillSelectRef = useRef<(skillId: string) => Promise<void>>();
   const handleNextFloorRef = useRef<() => void>();
   const autoNextFloorCalled = useRef(false);
+  const animLockRef = useRef(false);
   const useBattleItemRef = useRef(useBattleItem);
   useBattleItemRef.current = useBattleItem;
 
@@ -238,6 +239,9 @@ function BattleScreen() {
       const effectDelay = isAttack ? 250 / battleSpeed : 0;
       const totalAnimTime = isAttack ? 600 / battleSpeed : 300 / battleSpeed;
 
+      // Lock to prevent auto-battle from firing during animation
+      animLockRef.current = true;
+
       // ── 1단계: 공격 모션 + 이펙트 먼저 표시 (서버 호출 전) ──
       setSkillText(skill.name);
       setTimeout(() => setSkillText(null), 800 / battleSpeed);
@@ -292,6 +296,9 @@ function BattleScreen() {
         setPetAttacking(true);
         setTimeout(() => setPetAttacking(false), 400 / battleSpeed);
       }
+
+      // Unlock auto-battle
+      animLockRef.current = false;
     },
     [selectedTargetId, useSkill, useAbyssSkill, useWeeklyBossSkill, isAbyssMode, isWeeklyBossMode, updateSaveData, battleSpeed, activePetData],
   );
@@ -355,8 +362,8 @@ function BattleScreen() {
         return;
       }
 
-      // Only act on player turn and not animating
-      if (battle.status !== 'player_turn' || state.isAnimating) return;
+      // Only act on player turn and not animating (including local animation lock)
+      if (battle.status !== 'player_turn' || state.isAnimating || animLockRef.current) return;
 
       // Auto potion when HP < 30%
       if (battle.player.currentHp / battle.player.maxHp < 0.3) {
