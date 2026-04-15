@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import axios from 'axios';
-import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
 import { toast } from '@/components/common/Toast';
 
@@ -65,38 +64,71 @@ const COST_1 = 10_000;
 const COST_10 = 90_000;
 const COST_100 = 800_000;
 
-const BOARD_W = 360;
-const BOARD_H = 420;
-const PEG_ROWS = 7;
+/* ── Canvas / Physics Constants ── */
+const CANVAS_W = 500;
+const CANVAS_H = 700;
 const SLOT_COUNT = 9;
-const SLOT_W = BOARD_W / SLOT_COUNT;
 
-/* ── Pre-calculated ball paths (one per target slot 0-8) ── */
-function buildPath(slotIndex: number, startX: number): { x: number; y: number }[] {
-  const targetX = SLOT_W * slotIndex + SLOT_W / 2;
-  const steps = 10;
-  const points: { x: number; y: number }[] = [];
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    // Ease toward target X with some wobble
-    const wobble = Math.sin(t * Math.PI * 4) * (1 - t) * 30;
-    const x = startX + (targetX - startX) * t + wobble;
-    const y = t * (BOARD_H - 40);
-    points.push({ x, y });
-  }
-  return points;
+// Physics
+const GRAVITY = 0.15;
+const FRICTION = 0.98;
+const BOUNCE_DAMPING = 0.7;
+const PEG_BOUNCE = 0.6;
+const BALL_RADIUS = 6;
+const BALL_BALL_BOUNCE = 0.5;
+const PEG_RADIUS = 5;
+
+// Layout
+const PEG_START_Y = 120;
+const PEG_END_Y = 480;
+const PEG_ROWS = 9;
+const PEG_SPACING_Y = (PEG_END_Y - PEG_START_Y) / (PEG_ROWS - 1);
+
+const POCKET_TOP_Y = 550;
+const POCKET_BOTTOM_Y = 670;
+const POCKET_W = CANVAS_W / SLOT_COUNT;
+const DIVIDER_W = 3;
+const DIVIDER_H = 80;
+
+/* ── Ball interface ── */
+interface Ball {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  active: boolean;
+  settled: boolean;
+  resultSlot: number;
+  targetSlot: number;
+  color: string;
+  trail: { x: number; y: number }[];
+  settleTime: number;
 }
 
-/* ── Peg positions ── */
+/* ── Spark effect ── */
+interface Spark {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  color: string;
+}
+
+/* ── Build pegs ── */
 function buildPegs(): { x: number; y: number }[] {
   const pegs: { x: number; y: number }[] = [];
   for (let row = 0; row < PEG_ROWS; row++) {
-    const count = row % 2 === 0 ? 8 : 9;
-    const offset = row % 2 === 0 ? SLOT_W / 2 : 0;
+    const even = row % 2 === 0;
+    const count = even ? 4 : 5;
+    const totalSpan = (count - 1) * 50;
+    const startX = (CANVAS_W - totalSpan) / 2;
     for (let col = 0; col < count; col++) {
       pegs.push({
-        x: offset + col * (BOARD_W / (count - 1 || 1)),
-        y: 30 + row * 45,
+        x: startX + col * 50,
+        y: PEG_START_Y + row * PEG_SPACING_Y,
       });
     }
   }
@@ -104,6 +136,26 @@ function buildPegs(): { x: number; y: number }[] {
 }
 
 const PEGS = buildPegs();
+
+/* ── Divider positions ── */
+function buildDividers(): { x: number; y1: number; y2: number }[] {
+  const divs: { x: number; y1: number; y2: number }[] = [];
+  for (let i = 0; i <= SLOT_COUNT; i++) {
+    divs.push({
+      x: i * POCKET_W,
+      y1: POCKET_TOP_Y,
+      y2: POCKET_TOP_Y + DIVIDER_H,
+    });
+  }
+  return divs;
+}
+
+const DIVIDERS = buildDividers();
+
+/* ── Pocket centers ── */
+function getPocketCenterX(slot: number): number {
+  return slot * POCKET_W + POCKET_W / 2;
+}
 
 /* ── Component ── */
 function PachinkoScreen() {
@@ -115,151 +167,476 @@ function PachinkoScreen() {
   const [playing, setPlaying] = useState(false);
   const [singleResult, setSingleResult] = useState<PlayResult | null>(null);
   const [multiSummary, setMultiSummary] = useState<MultiSummary | null>(null);
-  const [multiProgress, setMultiProgress] = useState<{ current: number; total: number } | null>(null);
   const [stats, setStats] = useState<PachinkoStats>(loadStats);
-  const [_litSlot, setLitSlot] = useState<number | null>(null);
+  const [runningTally, setRunningTally] = useState<Record<string, number>>({});
+  const [jackpotFlash, setJackpotFlash] = useState(0);
 
-  const animFrameRef = useRef<number>(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const ballsRef = useRef<Ball[]>([]);
+  const sparksRef = useRef<Spark[]>([]);
+  const animFrameRef = useRef<number>(0);
+  const playingRef = useRef(false);
+  const pocketFlashRef = useRef<number[]>(new Array(SLOT_COUNT).fill(0));
+  const onAllSettledRef = useRef<(() => void) | null>(null);
+  const jackpotFlashRef = useRef(0);
 
   const gold = saveData?.gold ?? 0;
 
-  /* ── Draw board ── */
-  const drawBoard = useCallback((ballPos?: { x: number; y: number }, highlightSlot?: number | null) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  /* ── Physics step ── */
+  const physicsStep = useCallback(() => {
+    const balls = ballsRef.current;
+    const sparks = sparksRef.current;
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = BOARD_W * dpr;
-    canvas.height = BOARD_H * dpr;
-    ctx.scale(dpr, dpr);
+    for (const ball of balls) {
+      if (!ball.active || ball.settled) continue;
 
-    // Background gradient
-    const bg = ctx.createLinearGradient(0, 0, 0, BOARD_H);
-    bg.addColorStop(0, '#0f172a');
-    bg.addColorStop(1, '#1e1b4b');
+      // Gravity
+      ball.vy += GRAVITY;
+
+      // Friction
+      ball.vx *= FRICTION;
+      ball.vy *= FRICTION;
+
+      // Move
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+
+      // Trail
+      ball.trail.push({ x: ball.x, y: ball.y });
+      if (ball.trail.length > 5) ball.trail.shift();
+
+      // Peg collisions
+      for (const peg of PEGS) {
+        const dx = ball.x - peg.x;
+        const dy = ball.y - peg.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = ball.radius + PEG_RADIUS;
+        if (dist < minDist && dist > 0) {
+          // Separate
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const overlap = minDist - dist;
+          ball.x += nx * overlap;
+          ball.y += ny * overlap;
+
+          // Reflect
+          const dot = ball.vx * nx + ball.vy * ny;
+          ball.vx -= 2 * dot * nx;
+          ball.vy -= 2 * dot * ny;
+
+          // Damping + random deflection
+          ball.vx *= PEG_BOUNCE;
+          ball.vy *= PEG_BOUNCE;
+          ball.vx += (Math.random() - 0.5) * 1.0;
+
+          // Spark
+          const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+          if (speed > 1) {
+            for (let s = 0; s < 3; s++) {
+              sparks.push({
+                x: peg.x + nx * PEG_RADIUS,
+                y: peg.y + ny * PEG_RADIUS,
+                vx: (Math.random() - 0.5) * 3,
+                vy: (Math.random() - 0.5) * 3,
+                life: 15,
+                maxLife: 15,
+                color: '#FFD700',
+              });
+            }
+          }
+        }
+      }
+
+      // Ball-ball collisions
+      for (const other of balls) {
+        if (other === ball || !other.active || other.settled) continue;
+        const dx = ball.x - other.x;
+        const dy = ball.y - other.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = ball.radius + other.radius;
+        if (dist < minDist && dist > 0) {
+          const nx = dx / dist;
+          const ny = dy / dist;
+          const overlap = minDist - dist;
+          ball.x += nx * (overlap / 2);
+          ball.y += ny * (overlap / 2);
+          other.x -= nx * (overlap / 2);
+          other.y -= ny * (overlap / 2);
+
+          // Elastic collision
+          const dvx = ball.vx - other.vx;
+          const dvy = ball.vy - other.vy;
+          const dvDotN = dvx * nx + dvy * ny;
+          if (dvDotN > 0) {
+            ball.vx -= dvDotN * nx * BALL_BALL_BOUNCE;
+            ball.vy -= dvDotN * ny * BALL_BALL_BOUNCE;
+            other.vx += dvDotN * nx * BALL_BALL_BOUNCE;
+            other.vy += dvDotN * ny * BALL_BALL_BOUNCE;
+          }
+        }
+      }
+
+      // Wall collisions
+      if (ball.x < ball.radius) {
+        ball.x = ball.radius;
+        ball.vx = Math.abs(ball.vx) * BOUNCE_DAMPING;
+      }
+      if (ball.x > CANVAS_W - ball.radius) {
+        ball.x = CANVAS_W - ball.radius;
+        ball.vx = -Math.abs(ball.vx) * BOUNCE_DAMPING;
+      }
+      if (ball.y < ball.radius) {
+        ball.y = ball.radius;
+        ball.vy = Math.abs(ball.vy) * BOUNCE_DAMPING;
+      }
+
+      // Subtle bias toward target pocket in lower third
+      if (ball.y > PEG_END_Y && ball.targetSlot >= 0) {
+        const targetX = getPocketCenterX(ball.targetSlot);
+        const diff = targetX - ball.x;
+        ball.vx += diff * 0.003;
+      }
+
+      // Funnel walls at top of pocket area
+      if (ball.y >= POCKET_TOP_Y - 20 && ball.y < POCKET_TOP_Y) {
+        // Gentle funnel
+        const pocketIdx = Math.floor(ball.x / POCKET_W);
+        const pocketCenter = pocketIdx * POCKET_W + POCKET_W / 2;
+        const diff = pocketCenter - ball.x;
+        ball.vx += diff * 0.01;
+      }
+
+      // Divider collisions
+      if (ball.y >= POCKET_TOP_Y && ball.y <= POCKET_TOP_Y + DIVIDER_H) {
+        for (const div of DIVIDERS) {
+          const dx = ball.x - div.x;
+          if (Math.abs(dx) < ball.radius + DIVIDER_W / 2) {
+            if (dx < 0) {
+              ball.x = div.x - ball.radius - DIVIDER_W / 2;
+              ball.vx = -Math.abs(ball.vx) * BOUNCE_DAMPING;
+            } else {
+              ball.x = div.x + ball.radius + DIVIDER_W / 2;
+              ball.vx = Math.abs(ball.vx) * BOUNCE_DAMPING;
+            }
+          }
+        }
+      }
+
+      // Settle check
+      if (ball.y >= POCKET_BOTTOM_Y - 10) {
+        const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+        if (speed < 2 || ball.y > POCKET_BOTTOM_Y + 5) {
+          ball.settled = true;
+          ball.settleTime = Date.now();
+          ball.vy = 0;
+          ball.vx = 0;
+
+          // Determine visual slot
+          const slot = Math.max(0, Math.min(SLOT_COUNT - 1, Math.floor(ball.x / POCKET_W)));
+          ball.resultSlot = slot;
+
+          // Snap to pocket center
+          ball.x = getPocketCenterX(slot);
+          ball.y = POCKET_BOTTOM_Y - ball.radius - 5;
+
+          // Flash pocket
+          pocketFlashRef.current[slot] = 1.0;
+
+          // Jackpot flash
+          if (ball.targetSlot === 8) {
+            jackpotFlashRef.current = 1.0;
+            setJackpotFlash(1);
+          }
+
+          // Update running tally
+          const cfg = SLOT_CONFIG[ball.targetSlot];
+          if (cfg) {
+            setRunningTally(prev => ({
+              ...prev,
+              [cfg.label]: (prev[cfg.label] || 0) + 1,
+            }));
+          }
+        }
+      }
+
+      // Bottom wall
+      if (ball.y > POCKET_BOTTOM_Y) {
+        ball.y = POCKET_BOTTOM_Y - ball.radius - 5;
+        ball.vy = -Math.abs(ball.vy) * 0.3;
+      }
+    }
+
+    // Update sparks
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i];
+      s.x += s.vx;
+      s.y += s.vy;
+      s.life--;
+      if (s.life <= 0) sparks.splice(i, 1);
+    }
+
+    // Decay pocket flashes
+    for (let i = 0; i < SLOT_COUNT; i++) {
+      if (pocketFlashRef.current[i] > 0) {
+        pocketFlashRef.current[i] *= 0.95;
+        if (pocketFlashRef.current[i] < 0.01) pocketFlashRef.current[i] = 0;
+      }
+    }
+
+    // Decay jackpot flash
+    if (jackpotFlashRef.current > 0) {
+      jackpotFlashRef.current *= 0.93;
+      if (jackpotFlashRef.current < 0.01) {
+        jackpotFlashRef.current = 0;
+        setJackpotFlash(0);
+      }
+    }
+
+    // Check if all settled
+    const activeBalls = balls.filter(b => b.active);
+    if (activeBalls.length > 0 && activeBalls.every(b => b.settled)) {
+      if (onAllSettledRef.current) {
+        const cb = onAllSettledRef.current;
+        onAllSettledRef.current = null;
+        // Small delay so user sees the final state
+        setTimeout(cb, 500);
+      }
+    }
+  }, []);
+
+  /* ── Render frame ── */
+  const renderFrame = useCallback((ctx: CanvasRenderingContext2D) => {
+    const w = CANVAS_W;
+    const h = CANVAS_H;
+
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#0a0a1a');
+    bg.addColorStop(1, '#1a1a3a');
     ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, BOARD_W, BOARD_H);
+    ctx.fillRect(0, 0, w, h);
+
+    // Jackpot full-screen flash
+    if (jackpotFlashRef.current > 0) {
+      ctx.fillStyle = `rgba(239, 68, 68, ${jackpotFlashRef.current * 0.3})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // Pegs
+    for (const peg of PEGS) {
+      // Glow
+      ctx.save();
+      ctx.shadowColor = '#6366F1';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(peg.x, peg.y, PEG_RADIUS, 0, Math.PI * 2);
+      const pegGrad = ctx.createRadialGradient(peg.x - 1, peg.y - 1, 0, peg.x, peg.y, PEG_RADIUS);
+      pegGrad.addColorStop(0, '#818CF8');
+      pegGrad.addColorStop(1, '#6366F1');
+      ctx.fillStyle = pegGrad;
+      ctx.fill();
+      ctx.restore();
+
+      // Outline
+      ctx.beginPath();
+      ctx.arc(peg.x, peg.y, PEG_RADIUS, 0, Math.PI * 2);
+      ctx.strokeStyle = '#A5B4FC';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+
+    // Pocket area background
+    ctx.fillStyle = 'rgba(10, 10, 30, 0.5)';
+    ctx.fillRect(0, POCKET_TOP_Y, w, DIVIDER_H + 50);
+
+    // Pocket fills and flashes
+    for (let i = 0; i < SLOT_COUNT; i++) {
+      const px = i * POCKET_W;
+      const cfg = SLOT_CONFIG[i];
+      const flash = pocketFlashRef.current[i];
+
+      // Base color fill
+      ctx.fillStyle = cfg.color + '15';
+      ctx.fillRect(px, POCKET_TOP_Y, POCKET_W, DIVIDER_H);
+
+      // Flash overlay
+      if (flash > 0) {
+        ctx.fillStyle = cfg.color + Math.floor(flash * 180).toString(16).padStart(2, '0');
+        ctx.fillRect(px, POCKET_TOP_Y, POCKET_W, DIVIDER_H);
+      }
+
+      // Color bar at bottom of pocket
+      ctx.fillStyle = cfg.color + '80';
+      ctx.fillRect(px + 3, POCKET_TOP_Y + DIVIDER_H - 8, POCKET_W - 6, 5);
+
+      // Label
+      ctx.fillStyle = flash > 0.3 ? '#FFFFFF' : cfg.color;
+      ctx.font = 'bold 9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Abbreviate labels that are too long
+      const shortLabel = cfg.label.length > 4 ? cfg.label.slice(0, 4) : cfg.label;
+      ctx.fillText(shortLabel, px + POCKET_W / 2, POCKET_TOP_Y + DIVIDER_H / 2);
+    }
+
+    // Divider walls (metallic silver)
+    for (const div of DIVIDERS) {
+      if (div.x <= 0 || div.x >= w) continue;
+      const dGrad = ctx.createLinearGradient(div.x - DIVIDER_W / 2, 0, div.x + DIVIDER_W / 2, 0);
+      dGrad.addColorStop(0, '#9CA3AF');
+      dGrad.addColorStop(0.5, '#E5E7EB');
+      dGrad.addColorStop(1, '#9CA3AF');
+      ctx.fillStyle = dGrad;
+      ctx.fillRect(div.x - DIVIDER_W / 2, div.y1, DIVIDER_W, DIVIDER_H);
+    }
+
+    // Left and right walls of pocket area
+    const wallGrad = ctx.createLinearGradient(0, 0, DIVIDER_W, 0);
+    wallGrad.addColorStop(0, '#9CA3AF');
+    wallGrad.addColorStop(1, '#6B7280');
+    ctx.fillStyle = wallGrad;
+    ctx.fillRect(0, POCKET_TOP_Y, DIVIDER_W, DIVIDER_H);
+    ctx.fillRect(w - DIVIDER_W, POCKET_TOP_Y, DIVIDER_W, DIVIDER_H);
+
+    // Funnel guides (triangular shapes above pockets)
+    ctx.strokeStyle = '#4B5563';
+    ctx.lineWidth = 2;
+    // Left funnel wall
+    ctx.beginPath();
+    ctx.moveTo(20, POCKET_TOP_Y - 40);
+    ctx.lineTo(0, POCKET_TOP_Y);
+    ctx.stroke();
+    // Right funnel wall
+    ctx.beginPath();
+    ctx.moveTo(w - 20, POCKET_TOP_Y - 40);
+    ctx.lineTo(w, POCKET_TOP_Y);
+    ctx.stroke();
+
+    // Sparks
+    for (const spark of sparksRef.current) {
+      const alpha = spark.life / spark.maxLife;
+      ctx.beginPath();
+      ctx.arc(spark.x, spark.y, 2 * alpha, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
+      ctx.fill();
+    }
+
+    // Balls
+    for (const ball of ballsRef.current) {
+      if (!ball.active) continue;
+
+      // Trail
+      for (let i = 0; i < ball.trail.length; i++) {
+        const t = ball.trail[i];
+        const alpha = (i + 1) / (ball.trail.length + 1) * 0.4;
+        const r = ball.radius * ((i + 1) / ball.trail.length) * 0.7;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
+        ctx.fill();
+      }
+
+      // Shadow/glow
+      ctx.save();
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = ball.settled ? 4 : 10;
+
+      // Ball body
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      const ballGrad = ctx.createRadialGradient(
+        ball.x - ball.radius * 0.3, ball.y - ball.radius * 0.3, 0,
+        ball.x, ball.y, ball.radius
+      );
+      ballGrad.addColorStop(0, '#FFD700');
+      ballGrad.addColorStop(1, '#B8860B');
+      ctx.fillStyle = ballGrad;
+      ctx.fill();
+
+      // Highlight
+      ctx.beginPath();
+      ctx.arc(ball.x - ball.radius * 0.25, ball.y - ball.radius * 0.25, ball.radius * 0.35, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.fill();
+
+      ctx.restore();
+    }
 
     // Border
     ctx.strokeStyle = '#4c1d95';
     ctx.lineWidth = 2;
-    ctx.strokeRect(1, 1, BOARD_W - 2, BOARD_H - 2);
+    ctx.strokeRect(1, 1, w - 2, h - 2);
 
-    // Pegs
-    for (const peg of PEGS) {
-      ctx.beginPath();
-      ctx.arc(peg.x, peg.y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = '#7c3aed';
-      ctx.fill();
-      ctx.strokeStyle = '#a78bfa';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-
-    // Slot dividers + labels
-    const slotY = BOARD_H - 35;
-    for (let i = 0; i < SLOT_COUNT; i++) {
-      const x = i * SLOT_W;
-      const cfg = SLOT_CONFIG[i];
-      const isHighlighted = highlightSlot === i;
-
-      // Slot background
-      if (isHighlighted) {
-        ctx.fillStyle = cfg.color + '60';
-        ctx.fillRect(x, slotY, SLOT_W, 35);
-        // Glow
-        ctx.shadowColor = cfg.color;
-        ctx.shadowBlur = 15;
-        ctx.fillStyle = cfg.color + '40';
-        ctx.fillRect(x, slotY, SLOT_W, 35);
-        ctx.shadowBlur = 0;
-      }
-
-      // Divider
-      if (i > 0) {
-        ctx.beginPath();
-        ctx.moveTo(x, slotY);
-        ctx.lineTo(x, BOARD_H);
-        ctx.strokeStyle = '#4c1d95';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
-
-      // Slot label
-      ctx.fillStyle = isHighlighted ? '#fff' : cfg.color;
-      ctx.font = `bold ${isHighlighted ? 9 : 8}px sans-serif`;
-      ctx.textAlign = 'center';
-
-      // For jackpot, draw with gradient effect
-      if (cfg.id === 'jackpot') {
-        const grad = ctx.createLinearGradient(x, slotY + 10, x + SLOT_W, slotY + 25);
-        grad.addColorStop(0, '#EF4444');
-        grad.addColorStop(1, '#F59E0B');
-        ctx.fillStyle = grad;
-      }
-      ctx.fillText(cfg.label, x + SLOT_W / 2, slotY + 14);
-
-      // Slot color indicator bar
-      ctx.fillStyle = cfg.color;
-      ctx.fillRect(x + 4, BOARD_H - 6, SLOT_W - 8, 4);
-    }
-
-    // Horizontal line above slots
+    // Drop zone indicator at top
+    ctx.fillStyle = 'rgba(99, 102, 241, 0.1)';
+    ctx.fillRect(0, 0, w, 40);
+    ctx.strokeStyle = '#6366F150';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(0, slotY);
-    ctx.lineTo(BOARD_W, slotY);
-    ctx.strokeStyle = '#6d28d9';
-    ctx.lineWidth = 2;
+    ctx.moveTo(0, 40);
+    ctx.lineTo(w, 40);
     ctx.stroke();
-
-    // Ball
-    if (ballPos) {
-      ctx.beginPath();
-      ctx.arc(ballPos.x, ballPos.y, 8, 0, Math.PI * 2);
-      const ballGrad = ctx.createRadialGradient(ballPos.x - 2, ballPos.y - 2, 1, ballPos.x, ballPos.y, 8);
-      ballGrad.addColorStop(0, '#fbbf24');
-      ballGrad.addColorStop(1, '#b45309');
-      ctx.fillStyle = ballGrad;
-      ctx.fill();
-      ctx.strokeStyle = '#fcd34d';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // Ball glow
-      ctx.beginPath();
-      ctx.arc(ballPos.x, ballPos.y, 12, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(251, 191, 36, 0.2)';
-      ctx.fill();
-    }
   }, []);
 
-  /* ── Initial draw ── */
+  /* ── Animation loop ── */
   useEffect(() => {
-    drawBoard();
-  }, [drawBoard]);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-  /* ── Animate single ball ── */
-  const animateBall = useCallback((path: { x: number; y: number }[], slotIndex: number, onDone: () => void) => {
-    let step = 0;
-    const totalSteps = path.length;
-    const frameDuration = 80; // ms between frames
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    const animate = () => {
-      if (step >= totalSteps) {
-        setLitSlot(slotIndex);
-        drawBoard(path[totalSteps - 1], slotIndex);
-        onDone();
-        return;
+    // Set canvas resolution
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = CANVAS_W * dpr;
+    canvas.height = CANVAS_H * dpr;
+    ctx.scale(dpr, dpr);
+
+    let running = true;
+
+    const loop = () => {
+      if (!running) return;
+
+      // Reset transform for each frame
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      if (ballsRef.current.length > 0) {
+        physicsStep();
       }
-      drawBoard(path[step], step >= totalSteps - 2 ? slotIndex : null);
-      step++;
-      animFrameRef.current = window.setTimeout(animate, frameDuration) as unknown as number;
+      renderFrame(ctx);
+
+      animFrameRef.current = requestAnimationFrame(loop);
     };
-    animate();
-  }, [drawBoard]);
+
+    animFrameRef.current = requestAnimationFrame(loop);
+
+    return () => {
+      running = false;
+      cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [physicsStep, renderFrame]);
+
+  /* ── Spawn a ball ── */
+  const spawnBall = useCallback((targetSlot: number, pos: Position) => {
+    const baseX = pos === 'left' ? 125 : pos === 'right' ? 375 : 250;
+    const x = baseX + (Math.random() - 0.5) * 30;
+    const ball: Ball = {
+      x,
+      y: 20,
+      vx: (Math.random() - 0.5) * 2,
+      vy: 2,
+      radius: BALL_RADIUS,
+      active: true,
+      settled: false,
+      resultSlot: -1,
+      targetSlot,
+      color: '#FFD700',
+      trail: [],
+      settleTime: 0,
+    };
+    ballsRef.current.push(ball);
+  }, []);
 
   /* ── API call ── */
   const doPlay = useCallback(async (count: 1 | 10 | 100) => {
@@ -270,17 +647,22 @@ function PachinkoScreen() {
     }
 
     setPlaying(true);
+    playingRef.current = true;
     setSingleResult(null);
     setMultiSummary(null);
-    setLitSlot(null);
-    setMultiProgress(count > 1 ? { current: 0, total: count } : null);
+    setRunningTally({});
+    ballsRef.current = [];
+    sparksRef.current = [];
+    pocketFlashRef.current = new Array(SLOT_COUNT).fill(0);
+    jackpotFlashRef.current = 0;
+    setJackpotFlash(0);
 
     try {
       const res = await axios.post('/api/pachinko/play', { position, count });
       if (!res.data.success) {
         toast.error(res.data.message || '플레이에 실패했습니다.');
         setPlaying(false);
-        setMultiProgress(null);
+        playingRef.current = false;
         return;
       }
 
@@ -302,62 +684,68 @@ function PachinkoScreen() {
         return next;
       });
 
-      if (count === 1 && results.length === 1) {
-        // Single play: full animation
-        const result = results[0];
-        const startX = position === 'left' ? BOARD_W * 0.2 : position === 'right' ? BOARD_W * 0.8 : BOARD_W * 0.5;
-        const path = buildPath(result.slot, startX);
-        animateBall(path, result.slot, () => {
-          setSingleResult(result);
-          setPlaying(false);
-        });
-      } else {
-        // Multi play: rapid-fire
-        const startX = position === 'left' ? BOARD_W * 0.2 : position === 'right' ? BOARD_W * 0.8 : BOARD_W * 0.5;
-        let idx = 0;
+      // Spawn balls with staggered timing
+      const spawnInterval = count === 1 ? 0 : count === 10 ? 300 : 80;
 
-        const nextBall = () => {
-          if (idx >= results.length) {
-            // Show summary
-            const summary = buildMultiSummary(results);
-            setMultiSummary(summary);
-            setMultiProgress(null);
-            setPlaying(false);
-            drawBoard(undefined, undefined);
-            return;
-          }
-
-          const result = results[idx];
-          const path = buildPath(result.slot, startX);
-          setMultiProgress({ current: idx + 1, total: count });
-
-          // Quick animation: only show start and end
-          drawBoard(path[0], null);
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        if (i === 0) {
+          spawnBall(result.slot, position);
+        } else {
           setTimeout(() => {
-            drawBoard(path[path.length - 1], result.slot);
-            setLitSlot(result.slot);
-            idx++;
-            setTimeout(nextBall, 60);
-          }, 40);
-        };
-        nextBall();
+            if (playingRef.current) {
+              spawnBall(result.slot, position);
+            }
+          }, i * spawnInterval);
+        }
       }
+
+      // Set callback for when all balls settle
+      onAllSettledRef.current = () => {
+        if (count === 1 && results.length === 1) {
+          setSingleResult(results[0]);
+        } else {
+          const summary = buildMultiSummary(results);
+          setMultiSummary(summary);
+        }
+        setPlaying(false);
+        playingRef.current = false;
+      };
+
+      // Safety timeout: force finish after a generous timeout
+      const maxTime = count === 1 ? 15000 : count === 10 ? 25000 : 60000;
+      setTimeout(() => {
+        if (playingRef.current) {
+          // Force settle all balls
+          for (const ball of ballsRef.current) {
+            if (!ball.settled) {
+              ball.settled = true;
+              ball.settleTime = Date.now();
+              const slot = ball.targetSlot >= 0 ? ball.targetSlot : Math.floor(ball.x / POCKET_W);
+              ball.resultSlot = Math.max(0, Math.min(SLOT_COUNT - 1, slot));
+              ball.x = getPocketCenterX(ball.resultSlot);
+              ball.y = POCKET_BOTTOM_Y - ball.radius - 5;
+              ball.vx = 0;
+              ball.vy = 0;
+            }
+          }
+          if (onAllSettledRef.current) {
+            const cb = onAllSettledRef.current;
+            onAllSettledRef.current = null;
+            cb();
+          }
+        }
+      }, maxTime);
+
     } catch (err: unknown) {
       const msg = axios.isAxiosError(err) && err.response?.data?.message
         ? err.response.data.message
         : '파칭코 플레이에 실패했습니다.';
       toast.error(msg);
       setPlaying(false);
-      setMultiProgress(null);
+      playingRef.current = false;
     }
-  }, [gold, position, updateSaveData, animateBall, drawBoard]);
-
-  /* Cleanup timeouts on unmount */
-  useEffect(() => {
-    return () => {
-      if (animFrameRef.current) clearTimeout(animFrameRef.current);
-    };
-  }, []);
+  }, [gold, position, updateSaveData, spawnBall]);
 
   /* Build multi-play summary */
   const buildMultiSummary = (results: PlayResult[]): MultiSummary => {
@@ -384,7 +772,7 @@ function PachinkoScreen() {
   if (!saveData) return null;
 
   return (
-    <div className="max-w-2xl mx-auto p-4 min-h-screen">
+    <div className="max-w-5xl mx-auto p-4 min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <button
@@ -425,33 +813,49 @@ function PachinkoScreen() {
         ))}
       </div>
 
-      {/* Pachinko Board */}
-      <Card className="mb-4 p-3 flex justify-center">
-        <canvas
-          ref={canvasRef}
-          style={{ width: BOARD_W, height: BOARD_H }}
-          className="rounded-lg"
-        />
-      </Card>
+      {/* Main content: canvas + side panel */}
+      <div className="flex gap-4 justify-center mb-4">
+        {/* Canvas */}
+        <div
+          className="rounded-lg overflow-hidden flex-shrink-0"
+          style={{
+            width: CANVAS_W,
+            height: CANVAS_H,
+            boxShadow: jackpotFlash > 0
+              ? `0 0 ${30 * jackpotFlash}px rgba(239, 68, 68, ${jackpotFlash * 0.5})`
+              : '0 0 20px rgba(99, 102, 241, 0.2)',
+          }}
+        >
+          <canvas
+            ref={canvasRef}
+            style={{ width: CANVAS_W, height: CANVAS_H }}
+          />
+        </div>
 
-      {/* Multi-play progress bar */}
-      {multiProgress && (
-        <div className="mb-4">
-          <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
-            <span>{multiProgress.current}/{multiProgress.total} 진행중...</span>
-            <span>{Math.round((multiProgress.current / multiProgress.total) * 100)}%</span>
-          </div>
-          <div className="w-full bg-dungeon-bg rounded-full h-2 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-yellow-500 transition-all duration-100"
-              style={{ width: `${(multiProgress.current / multiProgress.total) * 100}%` }}
-            />
+        {/* Side panel: running tally */}
+        <div className="w-48 flex-shrink-0">
+          <div className="bg-dungeon-panel rounded-lg border border-gray-700 p-3">
+            <h3 className="text-xs font-bold text-gray-400 mb-2 border-b border-gray-700 pb-2">
+              {playing ? '진행중...' : '현재 결과'}
+            </h3>
+            {Object.keys(runningTally).length === 0 && !playing && !singleResult && !multiSummary && (
+              <p className="text-xs text-gray-600 text-center py-4">플레이를 시작하세요</p>
+            )}
+            {Object.entries(runningTally).map(([label, count]) => {
+              const cfg = SLOT_CONFIG.find(s => s.label === label);
+              return (
+                <div key={label} className="flex items-center justify-between text-xs py-1">
+                  <span style={{ color: cfg?.color ?? '#9CA3AF' }}>{label}</span>
+                  <span className="text-gray-300 font-bold">x{count}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Play Buttons */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-4 max-w-xl mx-auto">
         <Button
           onClick={() => doPlay(1)}
           disabled={playing || gold < COST_1}
@@ -493,7 +897,7 @@ function PachinkoScreen() {
       {/* Single Result Display */}
       {singleResult && !playing && (
         <div
-          className="mb-4 p-4 text-center rounded-lg border-2 bg-dungeon-panel"
+          className="mb-4 p-4 text-center rounded-lg border-2 bg-dungeon-panel max-w-xl mx-auto"
           style={{ borderColor: slotColorForResult + '80' }}
         >
           <p className="text-xs text-gray-500 mb-1">결과</p>
@@ -513,7 +917,7 @@ function PachinkoScreen() {
 
       {/* Multi Result Summary */}
       {multiSummary && !playing && (
-        <Card className="mb-4 p-4">
+        <div className="mb-4 p-4 rounded-lg border border-gray-700 bg-dungeon-panel max-w-xl mx-auto">
           <h3 className="text-sm font-bold text-yellow-400 mb-3">결과 요약</h3>
           <div className="flex flex-wrap gap-2 mb-3">
             {Object.entries(multiSummary.counts).map(([label, count]) => {
@@ -550,7 +954,7 @@ function PachinkoScreen() {
               )}
             </p>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Statistics */}
