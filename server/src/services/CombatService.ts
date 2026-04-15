@@ -43,6 +43,11 @@ const battleTalentMap = new Map<string, TalentBonuses>();
 const battleTitleMap = new Map<string, string>(); // battleId → equipped title ID
 const battleRandomOptionMap = new Map<string, { goldPercent: number; expPercent: number; lifesteal: number; reflect: number; hpRegen: number }>();
 const battlePetMap = new Map<string, { name: string; attack: number; level: number }>();
+const battleEquippedMap = new Map<string, string[]>();
+const battleProcState = new Map<string, {
+  cooldowns: Record<string, number>;
+  activeBuffs: { type: string; value: number; remainingTurns: number }[];
+}>();
 
 /** Calculate random option stat bonuses from equipped items */
 function calculateRandomOptionBonuses(saveData: SaveData): {
@@ -318,8 +323,8 @@ export function initBattle(
     if (!itemDef?.stats) continue;
     const enh = saveData.enhanceLevels?.[slotItemId];
     const mult = 1 + (enh?.level ?? 0);
-    equipCritRate += (itemDef.stats.critRate ?? 0) * mult;
-    equipCritDmg += (itemDef.stats.critDamage ?? 0) * mult;
+    equipCritRate += (itemDef.stats.critRate ?? 0);
+    equipCritDmg += (itemDef.stats.critDamage ?? 0);
   }
   // Add socketed gem crit stats
   for (const slotItemId of Object.values(saveData.equippedItems)) {
@@ -379,6 +384,10 @@ export function initBattle(
     }
   }
 
+  // Initialize proc state
+  battleEquippedMap.set(battleState.id, equippedIds);
+  battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
+
   return { battleState, skillStates, waveIndex, totalWaves: dungeon.waves.length };
 }
 
@@ -412,8 +421,10 @@ export function calculateDamage(
   isCrit: boolean,
   critDamage: number = 1.5,
 ): number {
-  const raw = attackerAtk * multiplier - defenderDef * 0.5;
-  const afterCrit = raw * (isCrit ? critDamage : 1);
+  const raw = attackerAtk * multiplier;
+  const reduction = defenderDef / (defenderDef + raw);
+  const afterDef = raw * (1 - reduction);
+  const afterCrit = afterDef * (isCrit ? critDamage : 1);
   return Math.max(1, Math.round(afterCrit));
 }
 
@@ -540,8 +551,61 @@ export function executePlayerAction(
     battleState.stats.skillsUsed += 1;
   }
 
+  // Roll proc effects from equipped items
+  const procState = battleProcState.get(battleState.id);
+  const equippedIds = battleEquippedMap.get(battleState.id) ?? [];
+  let procCritBoost = 0;
+  if (procState) {
+    for (const slotItemId of equippedIds) {
+      const itemDef = ITEMS.find(i => i.id === slotItemId);
+      if (!itemDef?.procEffect) continue;
+
+      const cd = procState.cooldowns[slotItemId] ?? 0;
+      if (cd > 0) continue;
+
+      if (Math.random() < itemDef.procEffect.chance) {
+        const proc = itemDef.procEffect;
+        procState.cooldowns[slotItemId] = proc.cooldown;
+
+        switch (proc.type) {
+          case 'atk_boost':
+            player.statusEffects.push({ type: 'attack_up', remainingTurns: proc.duration, value: Math.round(player.attack * proc.value / 100) });
+            battleState.log.push({ turn: battleState.turn, message: `[발동] ${itemDef.name}: ${proc.description}`, type: 'buff' });
+            break;
+          case 'def_boost':
+            player.statusEffects.push({ type: 'defense_up', remainingTurns: proc.duration, value: Math.round(player.defense * proc.value / 100) });
+            battleState.log.push({ turn: battleState.turn, message: `[발동] ${itemDef.name}: ${proc.description}`, type: 'buff' });
+            break;
+          case 'speed_boost':
+            procState.activeBuffs.push({ type: 'speed_boost', value: proc.value, remainingTurns: proc.duration });
+            battleState.log.push({ turn: battleState.turn, message: `[발동] ${itemDef.name}: ${proc.description}`, type: 'buff' });
+            break;
+          case 'crit_boost':
+            procState.activeBuffs.push({ type: 'crit_boost', value: proc.value / 100, remainingTurns: proc.duration });
+            battleState.log.push({ turn: battleState.turn, message: `[발동] ${itemDef.name}: ${proc.description}`, type: 'buff' });
+            break;
+          case 'heal_burst': {
+            const healAmount = Math.round(player.maxHp * proc.value / 100);
+            player.currentHp = Math.min(player.maxHp, player.currentHp + healAmount);
+            battleState.log.push({ turn: battleState.turn, message: `[발동] ${itemDef.name}: HP ${healAmount} 회복!`, type: 'heal' });
+            break;
+          }
+          case 'extra_damage':
+            procState.activeBuffs.push({ type: 'extra_damage', value: proc.value, remainingTurns: proc.duration });
+            battleState.log.push({ turn: battleState.turn, message: `[발동] ${itemDef.name}: ${proc.description}`, type: 'buff' });
+            break;
+        }
+      }
+    }
+
+    // Apply existing crit_boost buffs from previous turns
+    for (const buff of procState.activeBuffs) {
+      if (buff.type === 'crit_boost') procCritBoost += buff.value;
+    }
+  }
+
   for (const target of targets) {
-    const isCrit = Math.random() < baseCritRate;
+    const isCrit = Math.random() < (baseCritRate + procCritBoost);
     let damage = 0;
     let heal = 0;
 
@@ -565,6 +629,19 @@ export function executePlayerAction(
           damage += bonusDmg;
           battleState.log.push({ turn: battleState.turn, message: `[세트 효과] 추가 피해 ${bonusDmg}!`, type: 'buff' });
         }
+      }
+
+      // Apply proc extra_damage buff
+      if (procState) {
+        for (const buff of procState.activeBuffs) {
+          if (buff.type === 'extra_damage') {
+            const extraDmg = Math.round(damage * buff.value / 100);
+            damage += extraDmg;
+            battleState.log.push({ turn: battleState.turn, message: `[발동 효과] 추가 피해 ${extraDmg}!`, type: 'buff' });
+          }
+        }
+        // Consume extra_damage buffs (they are single-use)
+        procState.activeBuffs = procState.activeBuffs.filter(b => b.type !== 'extra_damage');
       }
 
       target.currentHp = Math.max(0, target.currentHp - damage);
@@ -824,6 +901,17 @@ export function executeEnemyTurn(battleState: BattleState): BattleResult[] {
     for (const ss of ssArr) {
       if (ss.currentCooldown > 0) ss.currentCooldown -= 1;
     }
+  }
+
+  // Tick proc cooldowns and active buffs
+  const procState = battleProcState.get(battleState.id);
+  if (procState) {
+    for (const key of Object.keys(procState.cooldowns)) {
+      if (procState.cooldowns[key] > 0) procState.cooldowns[key] -= 1;
+    }
+    procState.activeBuffs = procState.activeBuffs
+      .map(b => ({ ...b, remainingTurns: b.remainingTurns - 1 }))
+      .filter(b => b.remainingTurns > 0);
   }
 
   // MP natural recovery (3% of max per turn) + set active bonuses + talent bonuses
@@ -1215,6 +1303,8 @@ export function removeBattle(id: string): void {
   battleTitleMap.delete(id);
   battleRandomOptionMap.delete(id);
   battlePetMap.delete(id);
+  battleEquippedMap.delete(id);
+  battleProcState.delete(id);
   battleWaveMap.delete(id);
   abyssFloorMap.delete(id);
   weeklyBossMap.delete(id);
@@ -1269,8 +1359,8 @@ export function initAbyssBattle(
     equipAtk += (itemDef.stats.attack ?? 0) * mult;
     equipDef += (itemDef.stats.defense ?? 0) * mult;
     equipSpd += (itemDef.stats.speed ?? 0) * mult;
-    equipCritRate += (itemDef.stats.critRate ?? 0) * mult;
-    equipCritDmg += (itemDef.stats.critDamage ?? 0) * mult;
+    equipCritRate += (itemDef.stats.critRate ?? 0);
+    equipCritDmg += (itemDef.stats.critDamage ?? 0);
   }
 
   // Add socketed gem stats
@@ -1480,6 +1570,10 @@ export function initAbyssBattle(
     }
   }
 
+  // Initialize proc state (abyss)
+  battleEquippedMap.set(battleState.id, equippedIds);
+  battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
+
   return { battleState, skillStates, floor };
 }
 
@@ -1671,8 +1765,8 @@ export function initWeeklyBossBattle(
     equipAtk += (itemDef.stats.attack ?? 0) * mult;
     equipDef += (itemDef.stats.defense ?? 0) * mult;
     equipSpd += (itemDef.stats.speed ?? 0) * mult;
-    equipCritRate += (itemDef.stats.critRate ?? 0) * mult;
-    equipCritDmg += (itemDef.stats.critDamage ?? 0) * mult;
+    equipCritRate += (itemDef.stats.critRate ?? 0);
+    equipCritDmg += (itemDef.stats.critDamage ?? 0);
   }
 
   // Add socketed gem stats
@@ -1853,6 +1947,10 @@ export function initWeeklyBossBattle(
       });
     }
   }
+
+  // Initialize proc state (weekly boss)
+  battleEquippedMap.set(battleState.id, equippedIds);
+  battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
 
   return { battleState, skillStates };
 }

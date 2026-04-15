@@ -336,8 +336,8 @@ function ItemStatsDisplay({ item, enhanceLevel }: { item: Item; enhanceLevel: nu
       <StatLine label="HP" value={(item.stats.hp ?? 0) * mult} color="text-red-400" />
       <StatLine label="MP" value={(item.stats.mp ?? 0) * mult} color="text-blue-400" />
       <StatLine label="속도" value={(item.stats.speed ?? 0) * mult} color="text-green-400" />
-      <StatLine label="치명타율" value={(item.stats.critRate ?? 0) * mult} color="text-yellow-400" isPercent />
-      <StatLine label="치명타 피해" value={(item.stats.critDamage ?? 0) * mult} color="text-purple-400" isPercent />
+      <StatLine label="치명타율" value={(item.stats.critRate ?? 0)} color="text-yellow-400" isPercent />
+      <StatLine label="치명타 피해" value={(item.stats.critDamage ?? 0)} color="text-purple-400" isPercent />
     </div>
   );
 }
@@ -578,6 +578,12 @@ function EquippedDetailModal({
         <p className="text-sm text-gray-300">{slot.data.description}</p>
         <ItemStatsDisplay item={slot.data} enhanceLevel={slot.enhanceLevel} />
 
+        {slot.data.procEffect && (
+          <div className="mt-1 p-1.5 bg-rose-900/20 border border-rose-500/30 rounded text-xs text-rose-300">
+            ⚡ {slot.data.procEffect.description}
+          </div>
+        )}
+
         {/* Random options with lock + reroll */}
         {(() => {
           const baseCost = REROLL_COSTS[slot.data.rarity] ?? 10000;
@@ -599,7 +605,7 @@ function EquippedDetailModal({
                 onClick={() => onReroll(slot.data!.id, Array.from(lockedOptions))}
                 className="w-full mt-1"
               >
-                옵션 리롤 ({cost.toLocaleString()} 젬{lockCount > 0 ? ` / 잠금 ${lockCount}개` : ''})
+                옵션 리롤 ({cost.toLocaleString()} 골드{lockCount > 0 ? ` / 잠금 ${lockCount}개` : ''})
               </Button>
             </>
           );
@@ -797,8 +803,8 @@ function ItemDetailModal({
                 <CompareStatLine label="HP" newVal={(item.stats.hp ?? 0) * mult} oldVal={(equippedStats?.hp ?? 0) * equippedMult} color="text-red-400" />
                 <CompareStatLine label="MP" newVal={(item.stats.mp ?? 0) * mult} oldVal={(equippedStats?.mp ?? 0) * equippedMult} color="text-blue-400" />
                 <CompareStatLine label="속도" newVal={(item.stats.speed ?? 0) * mult} oldVal={(equippedStats?.speed ?? 0) * equippedMult} color="text-green-400" />
-                <CompareStatLine label="치명타율" newVal={(item.stats.critRate ?? 0) * mult} oldVal={(equippedStats?.critRate ?? 0) * equippedMult} color="text-yellow-400" isPercent />
-                <CompareStatLine label="치명타 피해" newVal={(item.stats.critDamage ?? 0) * mult} oldVal={(equippedStats?.critDamage ?? 0) * equippedMult} color="text-purple-400" isPercent />
+                <CompareStatLine label="치명타율" newVal={(item.stats.critRate ?? 0)} oldVal={(equippedStats?.critRate ?? 0)} color="text-yellow-400" isPercent />
+                <CompareStatLine label="치명타 피해" newVal={(item.stats.critDamage ?? 0)} oldVal={(equippedStats?.critDamage ?? 0)} color="text-purple-400" isPercent />
               </div>
             </div>
           ) : (
@@ -813,6 +819,12 @@ function ItemDetailModal({
                        item.useEffect.type === 'buff_attack' ? `공격력 ${item.useEffect.value} 증가` :
                        `방어력 ${item.useEffect.value} 증가`}
           </p>
+        )}
+
+        {item.procEffect && (
+          <div className="mt-1 p-1.5 bg-rose-900/20 border border-rose-500/30 rounded text-xs text-rose-300">
+            ⚡ {item.procEffect.description}
+          </div>
         )}
 
         {enhanceLevel > 0 && (
@@ -855,7 +867,7 @@ function ItemDetailModal({
                 onClick={() => onReroll(item.id, Array.from(lockedOptions))}
                 className="w-full mt-1"
               >
-                옵션 리롤 ({rerollCost.toLocaleString()} 젬{lockCount > 0 ? ` / 잠금 ${lockCount}개` : ''})
+                옵션 리롤 ({rerollCost.toLocaleString()} 골드{lockCount > 0 ? ` / 잠금 ${lockCount}개` : ''})
               </Button>
             </>
           );
@@ -986,7 +998,7 @@ function InventoryScreen() {
     if (!s) return 0;
     const mult = 1 + getEnhanceLevel(item.data.id);
     return ((s.attack ?? 0) + (s.defense ?? 0) + (s.hp ?? 0) + (s.mp ?? 0) +
-      (s.speed ?? 0) + (s.critRate ?? 0) * 500 + (s.critDamage ?? 0) * 200) * mult;
+      (s.speed ?? 0)) * mult + (s.critRate ?? 0) * 500 + (s.critDamage ?? 0) * 200;
   }, [getEnhanceLevel]);
 
   // Filtered + sorted equipment list
@@ -1098,7 +1110,7 @@ function InventoryScreen() {
       const res = await axios.post('/api/inventory/reroll', { itemId, lockedIndices });
       if (res.data.success) {
         updateSaveData(res.data.saveData);
-        toast.success(`리롤 완료! (${res.data.goldSpent.toLocaleString()} 젬 소모)`);
+        toast.success(`리롤 완료! (${res.data.goldSpent.toLocaleString()} 골드 소모)`);
         // 잠금 유지 (서버에서 잠긴 옵션 위치 보존됨)
         setSelectedItem((prev) => prev ? { ...prev } : null);
         setSelectedEquipSlot((prev) => prev ? { ...prev } : null);
@@ -1206,8 +1218,8 @@ function InventoryScreen() {
               totalHp += (item.stats.hp ?? 0) * mult;
               totalMp += (item.stats.mp ?? 0) * mult;
               totalSpd += (item.stats.speed ?? 0) * mult;
-              totalCrit += (item.stats.critRate ?? 0) * mult;
-              totalCritDmg += (item.stats.critDamage ?? 0) * mult;
+              totalCrit += (item.stats.critRate ?? 0);
+              totalCritDmg += (item.stats.critDamage ?? 0);
             }
 
             // Add random option flat stats to totals

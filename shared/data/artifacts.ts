@@ -71,7 +71,7 @@ export const ARTIFACTS: Artifact[] = [
   },
   {
     id: 'art_soul_flame', name: '영혼의 불꽃', description: '전체 스탯 +1% (무한 레벨)',
-    icon: '\uD83D\uDD25', maxLevel: 99999, costPerLevel: (level: number) => level * level * 50, effectPerLevel: 1,
+    icon: '\uD83D\uDD25', maxLevel: 99999, costPerLevel: (level: number) => 100 + level * 50, effectPerLevel: 1,
     effectType: 'allPercent', effectUnit: '%',
   },
 ];

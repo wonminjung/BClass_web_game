@@ -24,6 +24,16 @@ npm run dev:server    # Express server
 - 보너스 적용 순서: 기본+장비+강화 → 보석 → 세트 → 환생 → 특성 → 칭호 → 펫 → 유물
 - alert/confirm 금지 → `toast.success/error/info` + `confirm()` 사용
 - Path Aliases: `@/` → `src/`, `@shared/` → `shared/`
+- critRate/critDamage는 강화 배수(mult) 미적용. 장비 기본값만 사용.
+- 데미지 공식: `raw² / (raw + def)` × 크리티컬배율 (비율 감소 방식)
+- 옵션 리롤은 골드 소모, 강화는 젬 소모
+
+## Battle Graphics
+
+- 에셋: DungeonTileset II (CC0) + Kyrise RPG Icon Pack (CC BY 4.0)
+- 스프라이트 매핑: `client/src/config/spriteMap.ts`
+- 애니메이션: `client/src/components/battle/AnimatedSprite.tsx`
+- 클래스 → 스프라이트: knight_m(암기), wizzard_m(그마), elf_m(사냥), elf_f(성직), wizzard_f(암살)
 
 ## References
 

@@ -6,26 +6,11 @@ import { useCombatStore } from '@/stores/combatStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { SKILLS, ITEMS } from '@shared/data';
-import StatBar from '@/components/common/StatBar';
 import SkillBar from './SkillBar';
 import BattleResult from './BattleResult';
+import AnimatedSprite from './AnimatedSprite';
+import { CLASS_SPRITES, getMonsterSprite, getDungeonBackground } from '@/config/spriteMap';
 import type { BattleFighter } from '@shared/types';
-
-const getMonsterEmoji = (name: string) => {
-  if (name.includes('구울') || name.includes('언데드')) return '\u{1F480}';
-  if (name.includes('거미')) return '\u{1F577}';
-  if (name.includes('기사') || name.includes('오크')) return '\u2694\uFE0F';
-  if (name.includes('악마') || name.includes('에레다르') || name.includes('파멸')) return '\u{1F47F}';
-  if (name.includes('용') || name.includes('드레이크') || name.includes('비룡')) return '\u{1F409}';
-  if (name.includes('리치') || name.includes('사제') || name.includes('흑마')) return '\u{1F9D9}';
-  if (name.includes('정령') || name.includes('거신')) return '\u{1F525}';
-  if (name.includes('히드라') || name.includes('늪')) return '\u{1F40D}';
-  if (name.includes('가고일')) return '\u{1F5FF}';
-  if (name.includes('군주') || name.includes('살게라스') || name.includes('아키몬드')) return '\u{1F608}';
-  if (name.includes('아서스') || name.includes('초갈')) return '\u{1F451}';
-  if (name.includes('발키르')) return '\u{1F47C}';
-  return '\u{1F480}';
-};
 
 const EnemyCard = React.memo(function EnemyCard({
   enemy,
@@ -42,29 +27,58 @@ const EnemyCard = React.memo(function EnemyCard({
     if (enemy.isAlive) onSelect(enemy.id);
   }, [enemy.id, enemy.isAlive, onSelect]);
 
+  const spriteSet = useMemo(() => getMonsterSprite(enemy.name, enemy.monsterId), [enemy.name, enemy.monsterId]);
+  const isBoss = enemy.name.includes('보스') || enemy.name.includes('군주') || enemy.name.includes('왕');
+
   return (
     <button
       type="button"
       onClick={handleClick}
       disabled={!enemy.isAlive}
-      className={`panel p-2 sm:p-3 transition-all min-w-[100px] sm:min-w-[120px] ${
+      className={`relative flex flex-col items-center transition-all ${
         !enemy.isAlive
-          ? 'duration-500 scale-75 opacity-30 cursor-not-allowed'
+          ? 'duration-500 opacity-30 cursor-not-allowed'
           : isSelected
-            ? 'duration-200 border-dungeon-health shadow-md shadow-dungeon-health/20'
-            : 'duration-200 hover:border-dungeon-accent/50 cursor-pointer'
-      } ${isFlashing ? 'animate-pulse bg-red-900/30' : ''}`}
+            ? 'duration-200 drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]'
+            : 'duration-200 hover:drop-shadow-[0_0_6px_rgba(255,255,255,0.3)] cursor-pointer'
+      }`}
     >
-      <div className="w-14 h-14 mx-auto bg-dungeon-bg rounded-lg mb-2 flex items-center justify-center">
-        <span className={`text-2xl ${enemy.isAlive ? 'text-dungeon-health' : 'text-gray-700'}`}>
-          {getMonsterEmoji(enemy.name)}
-        </span>
+      {/* Selection indicator */}
+      {isSelected && enemy.isAlive && (
+        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+      )}
+
+      {/* Sprite container */}
+      <div className={`relative ${isFlashing ? 'animate-shake' : ''} ${!enemy.isAlive ? 'grayscale rotate-90 translate-y-2' : ''}`}
+           style={{ transition: 'all 0.5s ease' }}>
+        <AnimatedSprite
+          frames={enemy.isAlive ? spriteSet.idle : spriteSet.idle.slice(0, 1)}
+          fps={enemy.isAlive ? 6 : 0}
+          width={isBoss ? 80 : 56}
+          height={isBoss ? 80 : 56}
+          paused={!enemy.isAlive}
+        />
+        {/* Hit flash overlay */}
+        {isFlashing && (
+          <div className="absolute inset-0 bg-red-500/40 rounded mix-blend-screen" />
+        )}
       </div>
-      <p className="text-xs font-bold text-center truncate mb-1">{enemy.name}</p>
-      <StatBar current={enemy.currentHp} max={enemy.maxHp} color="health" showNumbers={false} />
-      <p className="text-[10px] text-gray-500 text-center mt-0.5">
-        {enemy.currentHp}/{enemy.maxHp}
-      </p>
+
+      {/* Name */}
+      <p className="text-[10px] font-bold text-center truncate max-w-[80px] mt-1">{enemy.name}</p>
+
+      {/* HP bar */}
+      <div className="w-16 mt-0.5">
+        <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden border border-gray-700">
+          <div
+            className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300"
+            style={{ width: `${Math.max(0, (enemy.currentHp / enemy.maxHp) * 100)}%` }}
+          />
+        </div>
+        <p className="text-[8px] text-gray-500 text-center mt-0.5">
+          {enemy.currentHp.toLocaleString()}/{enemy.maxHp.toLocaleString()}
+        </p>
+      </div>
     </button>
   );
 });
@@ -364,6 +378,20 @@ function BattleScreen() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const [playerHit, setPlayerHit] = useState(false);
+  const prevPlayerHp = useRef(0);
+  const dungeonBg = getDungeonBackground(dungeonId ?? '');
+  const playerSprites = CLASS_SPRITES[saveData?.characterId ?? ''] ?? CLASS_SPRITES.dark_knight;
+
+  // Detect when player takes damage for hit animation
+  useEffect(() => {
+    if (battleState && battleState.player.currentHp < prevPlayerHp.current) {
+      setPlayerHit(true);
+      setTimeout(() => setPlayerHit(false), 300);
+    }
+    prevPlayerHp.current = battleState?.player.currentHp ?? 0;
+  }, [battleState?.player.currentHp]);
+
   const logTypeColor: Record<string, string> = {
     damage: 'text-red-300',
     heal: 'text-green-300',
@@ -381,141 +409,175 @@ function BattleScreen() {
     );
   }
 
-  const bgGradient = isAbyssMode ? 'from-purple-950/20' : isWeeklyBossMode ? 'from-red-950/20' : 'from-gray-950/10';
-
   return (
-    <div className={`max-w-4xl mx-auto p-2 sm:p-4 min-h-screen flex flex-col bg-gradient-to-b ${bgGradient} to-transparent`}>
-      {/* Turn indicator */}
-      <div className="text-center mb-2 flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
-        {isAbyssMode && abyssFloor !== null && (
-          <span className="text-sm font-bold text-purple-400">
-            심연 {abyssFloor}층 {abyssFloor > 0 && abyssFloor % 10 === 0 ? '(BOSS)' : ''}
+    <div className="max-w-4xl mx-auto min-h-screen flex flex-col">
+      {/* Top bar: turn info + controls */}
+      <div className="flex items-center justify-between px-3 py-2 bg-black/60 border-b border-gray-800">
+        <div className="flex items-center gap-2 text-xs">
+          {isAbyssMode && abyssFloor !== null && (
+            <span className="font-bold text-purple-400">
+              심연 {abyssFloor}층{abyssFloor > 0 && abyssFloor % 10 === 0 ? ' BOSS' : ''}
+            </span>
+          )}
+          {!isAbyssMode && (
+            <span className="text-gray-400">
+              W{(battleState.log.filter((l) => l.type === 'system' && l.message.includes('웨이브')).length) + 1}/3
+            </span>
+          )}
+          <span className="text-gray-500">T{battleState.turn}</span>
+          <span className={`font-bold ${battleState.status === 'player_turn' ? 'text-green-400' : battleState.status === 'enemy_turn' ? 'text-red-400' : 'text-gray-500'}`}>
+            {battleState.status === 'player_turn' ? 'YOUR TURN' : battleState.status === 'enemy_turn' ? 'ENEMY TURN' : ''}
           </span>
-        )}
-        {!isAbyssMode && (
-          <span className="text-xs text-gray-400">
-            웨이브 {(battleState.log.filter((l) => l.type === 'system' && l.message.includes('웨이브')).length) + 1}/3
-          </span>
-        )}
-        <span className="text-xs text-gray-500">턴 {battleState.turn}</span>
-        <span className="text-xs text-dungeon-accent">
-          {battleState.status === 'player_turn'
-            ? '당신의 턴'
-            : battleState.status === 'enemy_turn'
-              ? '적의 턴'
-              : ''}
-        </span>
-        <button
-          type="button"
-          onClick={() => setAutoBattle((prev) => !prev)}
-          className={`px-3 py-1 text-xs font-bold rounded-lg border transition-colors ${
-            autoBattle
-              ? 'border-green-500 text-green-400 bg-green-900/30'
-              : 'border-dungeon-border text-gray-400 hover:border-gray-500'
-          }`}
-        >
-          자동 전투 {autoBattle ? 'ON' : 'OFF'}
-        </button>
-        <button
-          type="button"
-          onClick={() => setBattleSpeed((s) => (s >= 3 ? 1 : s + 1))}
-          className={`px-3 py-1 text-xs font-bold rounded-lg border transition-colors ${
-            battleSpeed > 1
-              ? 'border-yellow-500 text-yellow-400 bg-yellow-900/30'
-              : 'border-dungeon-border text-gray-400 hover:border-gray-500'
-          }`}
-        >
-          x{battleSpeed}
-        </button>
+        </div>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => setAutoBattle((prev) => !prev)}
+            className={`px-2 py-0.5 text-[10px] font-bold rounded border transition-colors ${
+              autoBattle ? 'border-green-500 text-green-400 bg-green-900/40' : 'border-gray-700 text-gray-500 hover:border-gray-500'
+            }`}
+          >
+            AUTO {autoBattle ? 'ON' : 'OFF'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setBattleSpeed((s) => (s >= 3 ? 1 : s + 1))}
+            className={`px-2 py-0.5 text-[10px] font-bold rounded border transition-colors ${
+              battleSpeed > 1 ? 'border-yellow-500 text-yellow-400 bg-yellow-900/40' : 'border-gray-700 text-gray-500 hover:border-gray-500'
+            }`}
+          >
+            x{battleSpeed}
+          </button>
+        </div>
       </div>
 
       {/* Error display */}
       {combatError && (
-        <div className="text-center text-red-400 text-xs mb-2 py-1 px-3 bg-red-900/20 rounded">
+        <div className="text-center text-red-400 text-xs py-1 px-3 bg-red-900/20">
           {combatError}
         </div>
       )}
 
-      {/* Enemy area */}
-      <div className="flex gap-3 justify-center flex-wrap mb-4">
-        {battleState.enemies.map((enemy) => (
-          <EnemyCard
-            key={enemy.id}
-            enemy={enemy}
-            isSelected={selectedTargetId === enemy.id}
-            isFlashing={flashEnemies.has(enemy.id)}
-            onSelect={handleTargetSelect}
-          />
-        ))}
-      </div>
-
-      {/* Battle log */}
+      {/* ═══ Battle Field ═══ */}
       <div
-        ref={logRef}
-        className="flex-1 min-h-[100px] sm:min-h-[160px] max-h-[160px] sm:max-h-[220px] overflow-y-auto panel mb-4 text-xs sm:text-sm space-y-1"
+        className="relative flex-shrink-0 flex flex-col items-center justify-between py-4 px-2"
+        style={{
+          background: dungeonBg.gradient,
+          minHeight: '260px',
+          borderBottom: '2px solid rgba(255,255,255,0.05)',
+        }}
       >
-        {battleLog.length === 0 && (
-          <p className="text-gray-600 text-center">전투가 시작됩니다...</p>
-        )}
-        {battleLog.map((entry, idx) =>
-          entry.message.includes('치명타') ? (
-            <p key={idx} className="text-yellow-300 font-bold">
-              <span className="text-gray-600 text-xs mr-2">[{entry.turn}]</span>
-              &#x26A1; {entry.message}
-            </p>
-          ) : (
-            <p key={idx} className={logTypeColor[entry.type] ?? 'text-gray-400'}>
-              <span className="text-gray-600 text-xs mr-2">[{entry.turn}]</span>
-              {entry.message}
-            </p>
-          ),
-        )}
-      </div>
+        {/* Floor tiles overlay */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/40 to-transparent" />
 
-      {/* Player stats */}
-      <div className={`panel mb-3 transition-colors duration-300 ${healFlash ? 'bg-green-900/20' : ''}`}>
-        <div className="flex items-center gap-4 mb-2">
-          <span className="font-bold text-sm">{battleState.player.name}</span>
-          {battleState.player.statusEffects.map((eff, i) => (
-            <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-dungeon-bg text-purple-300">
-              {eff.type} ({eff.remainingTurns})
-            </span>
+        {/* Enemy sprites area */}
+        <div className="flex gap-4 sm:gap-6 justify-center flex-wrap z-10">
+          {battleState.enemies.map((enemy) => (
+            <EnemyCard
+              key={enemy.id}
+              enemy={enemy}
+              isSelected={selectedTargetId === enemy.id}
+              isFlashing={flashEnemies.has(enemy.id)}
+              onSelect={handleTargetSelect}
+            />
           ))}
         </div>
-        <div className="grid grid-cols-2 gap-3 mb-2">
-          <StatBar
-            current={battleState.player.currentHp}
-            max={battleState.player.maxHp}
-            color="health"
-            label="HP"
-            showNumbers
-          />
-          <StatBar
-            current={battleState.player.currentMp}
-            max={battleState.player.maxMp}
-            color="mana"
-            label="MP"
-            showNumbers
-          />
-        </div>
-        <div className="flex gap-3 text-[11px]">
-          <span className="text-red-400">ATK {battleState.player.attack.toLocaleString()}</span>
-          <span className="text-blue-400">DEF {battleState.player.defense.toLocaleString()}</span>
-          <span className="text-green-400">SPD {battleState.player.speed}</span>
-          <span className="text-gray-600 text-[9px]">(실제 전투 수치)</span>
+
+        {/* VS divider */}
+        <div className="text-gray-600 text-xs font-bold tracking-widest my-2">VS</div>
+
+        {/* Player sprite area */}
+        <div className="flex items-end gap-4 z-10">
+          <div className={`relative ${playerHit ? 'animate-shake' : ''}`}>
+            <AnimatedSprite
+              frames={playerHit ? playerSprites.hit : playerSprites.idle}
+              fps={playerHit ? 12 : 6}
+              width={72}
+              height={72}
+              flip={true}
+            />
+            {healFlash && (
+              <div className="absolute inset-0 bg-green-400/30 rounded mix-blend-screen animate-pulse" />
+            )}
+          </div>
+          {/* Player info next to sprite */}
+          <div className="flex flex-col gap-1 pb-1">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-sm">{battleState.player.name}</span>
+              {battleState.player.statusEffects.map((eff, i) => (
+                <span key={i} className="text-[9px] px-1 py-0.5 rounded bg-black/40 text-purple-300 border border-purple-800/30">
+                  {eff.type === 'attack_up' ? 'ATK+' : eff.type === 'defense_up' ? 'DEF+' : eff.type === 'poison' ? 'PSN' : eff.type === 'regen' ? 'RGN' : eff.type} {eff.remainingTurns}t
+                </span>
+              ))}
+            </div>
+            {/* HP bar */}
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-red-400 w-5">HP</span>
+              <div className="w-32 h-2.5 bg-gray-900 rounded-full overflow-hidden border border-gray-700">
+                <div
+                  className="h-full bg-gradient-to-r from-red-700 to-red-400 transition-all duration-300"
+                  style={{ width: `${(battleState.player.currentHp / battleState.player.maxHp) * 100}%` }}
+                />
+              </div>
+              <span className="text-[9px] text-gray-400">{battleState.player.currentHp.toLocaleString()}/{battleState.player.maxHp.toLocaleString()}</span>
+            </div>
+            {/* MP bar */}
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-blue-400 w-5">MP</span>
+              <div className="w-32 h-2.5 bg-gray-900 rounded-full overflow-hidden border border-gray-700">
+                <div
+                  className="h-full bg-gradient-to-r from-blue-700 to-blue-400 transition-all duration-300"
+                  style={{ width: `${(battleState.player.currentMp / battleState.player.maxMp) * 100}%` }}
+                />
+              </div>
+              <span className="text-[9px] text-gray-400">{battleState.player.currentMp.toLocaleString()}/{battleState.player.maxMp.toLocaleString()}</span>
+            </div>
+            <div className="flex gap-2 text-[9px]">
+              <span className="text-red-400">ATK {battleState.player.attack.toLocaleString()}</span>
+              <span className="text-blue-400">DEF {battleState.player.defense.toLocaleString()}</span>
+              <span className="text-green-400">SPD {battleState.player.speed}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Skill bar */}
-      <SkillBar
-        skills={characterSkills}
-        skillStates={getSkillStates()}
-        currentMp={battleState.player.currentMp}
-        onSkillSelect={handleSkillSelect}
-      />
+      {/* ═══ Bottom UI Panel ═══ */}
+      <div className="flex-1 flex flex-col bg-black/80 border-t border-gray-800">
+        {/* Battle log */}
+        <div
+          ref={logRef}
+          className="h-[120px] overflow-y-auto px-3 py-2 text-xs space-y-0.5 border-b border-gray-800/50"
+        >
+          {battleLog.length === 0 && (
+            <p className="text-gray-600 text-center">전투가 시작됩니다...</p>
+          )}
+          {battleLog.map((entry, idx) =>
+            entry.message.includes('치명타') ? (
+              <p key={idx} className="text-yellow-300 font-bold">
+                <span className="text-gray-600 text-[10px] mr-1">[{entry.turn}]</span>
+                &#x26A1; {entry.message}
+              </p>
+            ) : (
+              <p key={idx} className={logTypeColor[entry.type] ?? 'text-gray-400'}>
+                <span className="text-gray-600 text-[10px] mr-1">[{entry.turn}]</span>
+                {entry.message}
+              </p>
+            ),
+          )}
+        </div>
 
-      {/* Consumable items */}
-      {isPlayerTurn && saveData?.inventory && (() => {
+        {/* Skill bar */}
+        <div className="px-2 py-2">
+          <SkillBar
+            skills={characterSkills}
+            skillStates={getSkillStates()}
+            currentMp={battleState.player.currentMp}
+            onSkillSelect={handleSkillSelect}
+          />
+        </div>
+
+        {/* Consumable items */}
+        {isPlayerTurn && saveData?.inventory && (() => {
         const consumables = saveData.inventory
           .map((s) => ({ slot: s, data: ITEMS.find((i) => i.id === s.itemId) }))
           .filter((c) => c.data?.type === 'consumable' && c.slot.quantity > 0);
@@ -541,19 +603,23 @@ function BattleScreen() {
             ))}
           </div>
         );
-      })()}
+        })()}
+      </div>
 
       {/* Boss intro overlay */}
       {bossIntro && (
-        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50 bg-black/40">
-          <span className="text-5xl font-black text-red-500 animate-pulse tracking-widest">BOSS</span>
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50 bg-black/60">
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-5xl font-black text-red-500 animate-pulse tracking-widest">BOSS</span>
+            <span className="text-sm text-red-300/70">{battleState.enemies[0]?.name}</span>
+          </div>
         </div>
       )}
 
       {/* Skill name floating text */}
       {skillText && (
         <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
-          <span className="text-3xl font-bold text-white animate-bounce opacity-80">{skillText}</span>
+          <span className="text-2xl font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] animate-bounce opacity-90">{skillText}</span>
         </div>
       )}
 

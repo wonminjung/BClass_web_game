@@ -105,8 +105,8 @@ function HomeScreen() {
       result.attack += (itemDef.stats.attack ?? 0) * mult;
       result.defense += (itemDef.stats.defense ?? 0) * mult;
       result.speed += (itemDef.stats.speed ?? 0) * mult;
-      result.critRate += (itemDef.stats.critRate ?? 0) * mult;
-      result.critDamage += (itemDef.stats.critDamage ?? 0) * mult;
+      result.critRate += (itemDef.stats.critRate ?? 0);
+      result.critDamage += (itemDef.stats.critDamage ?? 0);
     }
     return result;
   }, [saveData?.equippedItems, saveData?.enhanceLevels]);
