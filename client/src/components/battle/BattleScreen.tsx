@@ -569,6 +569,7 @@ function BattleScreen() {
             {playerEffect && <BattleEffect type={playerEffect} />}
           </div>
           <span className="text-[11px] font-bold">{battleState.player.name}</span>
+          <span className="text-[9px] text-gray-400">Lv.{saveData?.level ?? '?'}</span>
 
           {activePetData && (
             <div className={`flex flex-col items-center ${petAttacking ? 'animate-lunge-right' : ''}`}>

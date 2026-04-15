@@ -588,9 +588,7 @@ router.post('/weekly-boss/start', (req: Request, res: Response): void => {
       return;
     }
 
-    // Mark attempt time
-    saveData.lastWeeklyBoss = new Date().toISOString();
-    AuthService.saveProgress(saveCode, saveData);
+    // Don't mark attempt time here — only on victory
 
     res.json({
       success: true,
@@ -638,6 +636,9 @@ router.post(
 
         if (endAfterPlayer === 'victory') {
           const saveData = AuthService.getSaveData(saveCode)!;
+
+          // Mark weekly boss cooldown on victory only
+          saveData.lastWeeklyBoss = new Date().toISOString();
 
           // Count kills
           const deadEnemies = battleState.enemies.filter(e => !e.isAlive).length;
@@ -705,6 +706,9 @@ router.post(
       if (endAfterEnemy === 'victory') {
         battleState.status = 'victory';
         const saveData = AuthService.getSaveData(saveCode)!;
+
+        // Mark weekly boss cooldown on victory only
+        saveData.lastWeeklyBoss = new Date().toISOString();
 
         const deadEnemies2 = battleState.enemies.filter(e => !e.isAlive).length;
         if (!saveData.totalKills) saveData.totalKills = 0;
