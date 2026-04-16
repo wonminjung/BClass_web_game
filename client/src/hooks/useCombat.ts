@@ -70,6 +70,10 @@ export function useCombat() {
 
   const startAbyssBattle = useCallback(() => startAbyssBattleAction(), [startAbyssBattleAction]);
   const startWeeklyBossBattle = useCallback(() => startWeeklyBossBattleAction(), [startWeeklyBossBattleAction]);
+  const startPrestigeTrialAction = useCombatStore((s) => s.startPrestigeTrialBattle);
+  const usePrestigeTrialSkillAction = useCombatStore((s) => s.usePrestigeTrialSkill);
+  const startPrestigeTrialBattle = useCallback(() => startPrestigeTrialAction(), [startPrestigeTrialAction]);
+  const usePrestigeTrialSkill = useCallback((skillId: string, targetId: string) => usePrestigeTrialSkillAction(skillId, targetId), [usePrestigeTrialSkillAction]);
   const useBattleItem = useCallback(
     (itemId: string) => useBattleItemAction(itemId),
     [useBattleItemAction],
@@ -96,9 +100,11 @@ export function useCombat() {
     startBattle,
     startAbyssBattle,
     startWeeklyBossBattle,
+    startPrestigeTrialBattle,
     useSkill,
     useAbyssSkill,
     useWeeklyBossSkill,
+    usePrestigeTrialSkill,
     useBattleItem,
     resetBattle,
     canUseSkill,

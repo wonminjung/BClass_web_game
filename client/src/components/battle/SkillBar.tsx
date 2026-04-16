@@ -6,6 +6,7 @@ interface SkillBarProps {
   skillStates: SkillState[];
   currentMp: number;
   onSkillSelect: (skillId: string) => void;
+  equippedSkillIds?: string[];
 }
 
 const typeColorMap: Record<string, string> = {
@@ -117,10 +118,21 @@ const SkillBar = React.memo(function SkillBar({
   skillStates,
   currentMp,
   onSkillSelect,
+  equippedSkillIds,
 }: SkillBarProps) {
+  // Filter skills: only show equipped skills + basic attack, exclude passives
+  // If equippedSkillIds is empty/undefined, show all skills (backwards compatible)
+  const filteredSkills = React.useMemo(() => {
+    const nonPassive = skills.filter((s) => s.type !== 'passive');
+    if (!equippedSkillIds || equippedSkillIds.length === 0) return nonPassive;
+    return nonPassive.filter(
+      (s) => s.id === 'common_basic_attack' || equippedSkillIds.includes(s.id),
+    );
+  }, [skills, equippedSkillIds]);
+
   return (
     <div className="flex gap-2 justify-center flex-wrap">
-      {skills.map((skill) => (
+      {filteredSkills.map((skill) => (
         <SkillButton
           key={skill.id}
           skill={skill}

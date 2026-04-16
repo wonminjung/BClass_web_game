@@ -43,30 +43,67 @@ export interface TalentBonuses {
   fortunePercent: number;
 }
 
-export function calculateTalentBonuses(talentPoints: Record<string, number>): TalentBonuses {
+/** @deprecated Use calculatePassiveTreeBonuses instead */
+export function calculateTalentBonuses(_talentPoints: Record<string, number>): TalentBonuses {
+  // Old talent system disabled — returns zeros
+  return {
+    atkPercent: 0, defPercent: 0, hpPercent: 0, mpPercent: 0,
+    critRateFlat: 0, critDmgPercent: 0, hpRegenPercent: 0, mpRegenPercent: 0,
+    goldPercent: 0, totalDmgPercent: 0, dmgReductionPercent: 0, fortunePercent: 0,
+  };
+}
+
+import { PASSIVE_TREE } from './passiveTree';
+
+/** Calculate bonuses from the new passive tree */
+export function calculatePassiveTreeBonuses(allocatedNodes: string[]): TalentBonuses {
+
   const bonuses: TalentBonuses = {
-    atkPercent: 0,
-    defPercent: 0,
-    hpPercent: 0,
-    mpPercent: 0,
-    critRateFlat: 0,
-    critDmgPercent: 0,
-    hpRegenPercent: 0,
-    mpRegenPercent: 0,
-    goldPercent: 0,
-    totalDmgPercent: 0,
-    dmgReductionPercent: 0,
-    fortunePercent: 0,
+    atkPercent: 0, defPercent: 0, hpPercent: 0, mpPercent: 0,
+    critRateFlat: 0, critDmgPercent: 0, hpRegenPercent: 0, mpRegenPercent: 0,
+    goldPercent: 0, totalDmgPercent: 0, dmgReductionPercent: 0, fortunePercent: 0,
   };
 
-  for (const talent of TALENTS) {
-    const invested = talentPoints[talent.id] ?? 0;
-    if (invested <= 0) continue;
-    for (const effect of talent.effects) {
-      const key = effect.stat as keyof TalentBonuses;
-      if (key in bonuses) {
-        bonuses[key] += effect.valuePerLevel * invested;
-      }
+  const STAT_MAP: Record<string, keyof TalentBonuses> = {
+    atkPercent: 'atkPercent',
+    defPercent: 'defPercent',
+    hpPercent: 'hpPercent',
+    mpPercent: 'mpPercent',
+    critRate: 'critRateFlat',
+    critDamage: 'critDmgPercent',
+    hpRegen: 'hpRegenPercent',
+    manaRegen: 'mpRegenPercent',
+    goldPercent: 'goldPercent',
+    expPercent: 'fortunePercent',
+    dropPercent: 'fortunePercent',
+    skillDamage: 'totalDmgPercent',
+    aoeDamage: 'totalDmgPercent',
+    dotDamage: 'totalDmgPercent',
+    spdFlat: 'atkPercent', // speed doesn't map perfectly, stored separately
+    penetration: 'atkPercent',
+    defIgnore: 'atkPercent',
+    lifesteal: 'hpRegenPercent',
+    reflect: 'dmgReductionPercent',
+    cooldownReduce: 'mpRegenPercent',
+  };
+
+  // Build lookup
+  const nodeMap = new Map<string, any>();
+  for (const node of PASSIVE_TREE) nodeMap.set(node.id, node);
+
+  // Stats that are stored as decimals (0.02 = 2%) but TalentBonuses uses integers (2 = 2%)
+  const PERCENT_STATS = new Set(['atkPercent', 'defPercent', 'hpPercent', 'mpPercent', 'critDamage', 'hpRegen', 'manaRegen', 'goldPercent', 'expPercent', 'dropPercent', 'skillDamage', 'aoeDamage', 'dotDamage', 'lifesteal', 'reflect', 'penetration', 'defIgnore', 'cooldownReduce']);
+
+  for (const nId of allocatedNodes) {
+    const node = nodeMap.get(nId);
+    if (!node?.effect?.stat || !node.effect.value) continue;
+    const bonusKey = STAT_MAP[node.effect.stat];
+    if (bonusKey) {
+      // Convert decimal (0.02) to percent integer (2) for percent-based stats
+      const val = PERCENT_STATS.has(node.effect.stat)
+        ? node.effect.value * 100
+        : node.effect.value;
+      bonuses[bonusKey] += val;
     }
   }
 

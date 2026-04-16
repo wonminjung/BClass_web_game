@@ -28,9 +28,11 @@ interface CombatStoreState {
   startBattle: (dungeonId: string) => Promise<void>;
   startAbyssBattle: () => Promise<void>;
   startWeeklyBossBattle: () => Promise<void>;
+  startPrestigeTrialBattle: () => Promise<void>;
   useSkill: (skillId: string, targetId: string) => Promise<CombatActionResponse | null>;
   useAbyssSkill: (skillId: string, targetId: string) => Promise<CombatActionResponse | null>;
   useWeeklyBossSkill: (skillId: string, targetId: string) => Promise<CombatActionResponse | null>;
+  usePrestigeTrialSkill: (skillId: string, targetId: string) => Promise<CombatActionResponse | null>;
   useBattleItem: (itemId: string) => Promise<CombatActionResponse | null>;
   resetBattle: () => void;
 }
@@ -238,7 +240,7 @@ export const useCombatStore = create<CombatStoreState>((set, get) => ({
           levelUp: res.data.levelUp ?? null,
           isAnimating: false,
           abyssFloor: (res.data as any).floor ?? get().abyssFloor,
-          abyssNextFloor: (res.data as any).nextFloor ?? null,
+          abyssNextFloor: (res.data as any).nextFloor !== undefined ? (res.data as any).nextFloor : get().abyssNextFloor,
         });
         return res.data;
       } else {
@@ -253,6 +255,41 @@ export const useCombatStore = create<CombatStoreState>((set, get) => ({
       set({ error: message, isAnimating: false });
       return null;
     }
+  },
+
+  startPrestigeTrialBattle: async () => {
+    set({ error: null, rewards: null, levelUp: null, battleLog: [], isAbyss: false });
+    try {
+      const res = await axios.post<CombatActionResponse>('/api/combat/prestige-trial/start');
+      if (res.data.success) {
+        set({ battleState: res.data.battleState, skillStates: res.data.skillStates ?? [], battleLog: res.data.battleState.log ?? [] });
+      } else {
+        set({ error: res.data.message ?? '시련 전투를 시작할 수 없습니다.' });
+      }
+    } catch (err) {
+      const message = axios.isAxiosError(err) && err.response?.data?.message ? err.response.data.message : '시련 전투를 시작할 수 없습니다.';
+      set({ error: message });
+    }
+  },
+
+  usePrestigeTrialSkill: async (skillId: string, targetId: string) => {
+    const current = get().battleState;
+    if (!current) return null;
+    set({ isAnimating: true, error: null });
+    try {
+      const res = await axios.post<CombatActionResponse>('/api/combat/prestige-trial/action', { battleId: current.id, skillId, targetId });
+      if (res.data.success) {
+        const bs = res.data.battleState;
+        set({ battleState: bs, skillStates: res.data.skillStates ?? get().skillStates, battleLog: bs.log ?? [], isAnimating: false });
+        return res.data;
+      } else {
+        set({ error: res.data.message, isAnimating: false });
+      }
+    } catch (err) {
+      const message = axios.isAxiosError(err) && err.response?.data?.message ? err.response.data.message : '행동 실패';
+      set({ error: message, isAnimating: false });
+    }
+    return null;
   },
 
   resetBattle: () => {

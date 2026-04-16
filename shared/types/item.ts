@@ -12,6 +12,16 @@ export interface Item {
   useEffect?: UseEffect;
   requiredClass?: CharacterClass;
   setId?: string;
+  procEffect?: ProcEffect;
+}
+
+export interface ProcEffect {
+  chance: number;        // 발동 확률 (0~1)
+  type: 'atk_boost' | 'def_boost' | 'speed_boost' | 'crit_boost' | 'heal_burst' | 'extra_damage';
+  value: number;         // % 수치
+  duration: number;      // 지속 턴
+  cooldown: number;      // 쿨다운 턴
+  description: string;   // UI 표시용
 }
 
 import type { CharacterClass } from './character';

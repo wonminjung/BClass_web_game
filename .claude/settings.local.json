@@ -6,7 +6,22 @@
       "Bash(git add:*)",
       "Bash(git reset:*)",
       "Bash(git commit -m ':*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npx tsc:*)",
+      "WebSearch",
+      "WebFetch(domain:itchabop.itch.io)",
+      "WebFetch(domain:0x72.itch.io)",
+      "WebFetch(domain:kyrise.itch.io)",
+      "WebFetch(domain:veyroa.itch.io)",
+      "WebFetch(domain:kurai7.itch.io)",
+      "Bash(npm run:*)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill:*)",
+      "Bash(ls:*)",
+      "Bash(git commit:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(curl -s http://localhost:4444/api/passive/tree -H \"Authorization: Bearer test\")"
     ]
   }
 }

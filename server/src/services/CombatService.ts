@@ -10,7 +10,8 @@ import type {
   SkillState,
   SaveData,
 } from '../../../shared/types';
-import { CHARACTERS, SKILLS, MONSTERS, DUNGEONS, ITEMS, SETS, GEMS, PETS, TALENTS, calculateTalentBonuses, TITLES } from '../../../shared/data';
+import { CHARACTERS, SKILLS, MONSTERS, DUNGEONS, ITEMS, SETS, GEMS, PETS, TALENTS, calculatePassiveTreeBonuses, TITLES } from '../../../shared/data';
+import { calculateTotalStats } from '../../../shared/utils/calcStats';
 import type { SetBonus } from '../../../shared/data/sets';
 import type { TalentBonuses } from '../../../shared/data/talents';
 import { ARTIFACTS } from '../../../shared/data';
@@ -42,6 +43,15 @@ const battleSkillLevelMap = new Map<string, Record<string, number>>();
 const battleTalentMap = new Map<string, TalentBonuses>();
 const battleTitleMap = new Map<string, string>(); // battleId → equipped title ID
 const battleRandomOptionMap = new Map<string, { goldPercent: number; expPercent: number; lifesteal: number; reflect: number; hpRegen: number }>();
+const battlePetMap = new Map<string, { name: string; attack: number; level: number }>();
+const battleEquippedMap = new Map<string, string[]>();
+const battleKeystoneMap = new Map<string, { id: string; ratio: number }[]>(); // keystone specials with ratio
+const battleUndyingUsed = new Map<string, boolean>(); // track undying proc per battle
+const battleEquippedSkillsMap = new Map<string, string[]>(); // equipped skill IDs from saveData
+const battleProcState = new Map<string, {
+  cooldowns: Record<string, number>;
+  activeBuffs: { type: string; value: number; remainingTurns: number }[];
+}>();
 
 /** Calculate random option stat bonuses from equipped items */
 function calculateRandomOptionBonuses(saveData: SaveData): {
@@ -139,123 +149,23 @@ export function initBattle(
   const character = CHARACTERS.find((c) => c.id === saveData.characterId);
   if (!character) return { error: 'Character data not found' };
 
-  // Build player fighter from base stats + level scaling + equipment
-  const levelBonus = saveData.level - 1;
-  let equipHp = 0, equipMp = 0, equipAtk = 0, equipDef = 0, equipSpd = 0;
-
-  // Sum up equipped item stats with enhancement multiplier
-  for (const slotItemId of Object.values(saveData.equippedItems)) {
-    if (!slotItemId) continue;
-    const itemDef = ITEMS.find((i) => i.id === slotItemId);
-    if (!itemDef?.stats) continue;
-    const enh = saveData.enhanceLevels?.[slotItemId];
-    const mult = 1 + (enh?.level ?? 0);
-    equipHp += (itemDef.stats.hp ?? 0) * mult;
-    equipMp += (itemDef.stats.mp ?? 0) * mult;
-    equipAtk += (itemDef.stats.attack ?? 0) * mult;
-    equipDef += (itemDef.stats.defense ?? 0) * mult;
-    equipSpd += (itemDef.stats.speed ?? 0) * mult;
-  }
-
-  // Add socketed gem stats
-  for (const slotItemId of Object.values(saveData.equippedItems)) {
-    if (!slotItemId) continue;
-    const sockets = saveData.socketedGems?.[slotItemId] ?? [];
-    for (const gemId of sockets) {
-      const gem = GEMS.find((g) => g.id === gemId);
-      if (!gem) continue;
-      if (gem.stat === 'attack') equipAtk += gem.value;
-      else if (gem.stat === 'defense') equipDef += gem.value;
-      else if (gem.stat === 'hp') equipHp += gem.value;
-      else if (gem.stat === 'mp') equipMp += gem.value;
-      else if (gem.stat === 'speed') equipSpd += gem.value;
-    }
-  }
-
-  // Random option bonuses (flat)
-  const randOpts = calculateRandomOptionBonuses(saveData);
-  equipAtk += randOpts.atkFlat;
-  equipDef += randOpts.defFlat;
-  equipHp += randOpts.hpFlat;
-  equipSpd += randOpts.speedFlat;
-
-  // Set bonuses (% based)
+  // Build player fighter using shared stat calculator
+  const totalStats = calculateTotalStats(saveData);
   const equippedIds = Object.values(saveData.equippedItems).filter(Boolean) as string[];
   const { statMods, actives: setActives } = calculateSetBonuses(equippedIds);
-
-  let baseHp = character.baseStats.maxHp + levelBonus * 15 + equipHp;
-  let baseMp = character.baseStats.maxMp + levelBonus * 5 + equipMp;
-  let baseAtk = character.baseStats.attack + levelBonus * 3 + equipAtk;
-  let baseDef = character.baseStats.defense + levelBonus * 2 + equipDef;
-
-  baseHp = Math.round(baseHp * (1 + statMods.hpPercent / 100));
-  baseMp = Math.round(baseMp * (1 + statMods.mpPercent / 100));
-  baseAtk = Math.round(baseAtk * (1 + statMods.atkPercent / 100));
-  baseDef = Math.round(baseDef * (1 + statMods.defPercent / 100));
-
-  // Prestige bonus
-  const prestigeBonus = 1 + (saveData.prestigeLevel ?? 0) * 0.02;
-  baseHp = Math.round(baseHp * prestigeBonus);
-  baseMp = Math.round(baseMp * prestigeBonus);
-  baseAtk = Math.round(baseAtk * prestigeBonus);
-  baseDef = Math.round(baseDef * prestigeBonus);
-
-  // Talent bonuses
-  const talentMods = calculateTalentBonuses(saveData.talentPoints ?? {});
-  baseHp = Math.round(baseHp * (1 + talentMods.hpPercent / 100));
-  baseMp = Math.round(baseMp * (1 + talentMods.mpPercent / 100));
-  baseAtk = Math.round(baseAtk * (1 + talentMods.atkPercent / 100));
-  baseDef = Math.round(baseDef * (1 + talentMods.defPercent / 100));
-
-  // Title bonus
-  const equippedTitleId = saveData.equippedTitle ?? '';
-  if (equippedTitleId) {
-    const titleDef = TITLES.find((t) => t.id === equippedTitleId);
-    if (titleDef?.bonus) {
-      if (titleDef.bonus.stat === 'atkPercent') baseAtk = Math.round(baseAtk * (1 + titleDef.bonus.value / 100));
-      if (titleDef.bonus.stat === 'defPercent') baseDef = Math.round(baseDef * (1 + titleDef.bonus.value / 100));
-      if (titleDef.bonus.stat === 'hpPercent') baseHp = Math.round(baseHp * (1 + titleDef.bonus.value / 100));
-      if (titleDef.bonus.stat === 'mpPercent') baseMp = Math.round(baseMp * (1 + titleDef.bonus.value / 100));
-    }
-  }
-
-  // Pet bonus
-  let petCritRateBonus = 0;
-  if (saveData.activePet) {
-    const pet = PETS.find((p) => p.id === saveData.activePet);
-    if (pet) {
-      for (const b of pet.bonus) {
-        if (b.stat === 'atkPercent') baseAtk = Math.round(baseAtk * (1 + b.value / 100));
-        if (b.stat === 'defPercent') baseDef = Math.round(baseDef * (1 + b.value / 100));
-        if (b.stat === 'hpPercent') baseHp = Math.round(baseHp * (1 + b.value / 100));
-        if (b.stat === 'mpPercent') baseMp = Math.round(baseMp * (1 + b.value / 100));
-        if (b.stat === 'critRateFlat') petCritRateBonus += b.value;
-      }
-    }
-  }
-
-  // Artifact bonus
-  const artBonuses = getArtifactBonuses(saveData.artifacts);
-  const allPct = (artBonuses.allPercent ?? 0) + (artBonuses.hpPercent ?? 0);
-  baseHp = Math.round(baseHp * (1 + allPct / 100));
-  baseMp = Math.round(baseMp * (1 + ((artBonuses.allPercent ?? 0) + (artBonuses.mpPercent ?? 0)) / 100));
-  baseAtk = Math.round(baseAtk * (1 + ((artBonuses.allPercent ?? 0) + (artBonuses.atkPercent ?? 0)) / 100));
-  baseDef = Math.round(baseDef * (1 + ((artBonuses.allPercent ?? 0) + (artBonuses.defPercent ?? 0)) / 100));
-
-  // Random option percent bonuses
-  if (randOpts.atkPercent > 0) baseAtk = Math.round(baseAtk * (1 + randOpts.atkPercent / 100));
-  if (randOpts.hpPercent > 0) baseHp = Math.round(baseHp * (1 + randOpts.hpPercent / 100));
+  const talentMods = calculatePassiveTreeBonuses(saveData.passiveTree?.allocatedNodes ?? []);
+  const randOpts = calculateRandomOptionBonuses(saveData);
 
   const player: BattleFighter = {
     id: 'player',
     name: saveData.playerName,
-    currentHp: baseHp,
-    maxHp: baseHp,
-    currentMp: baseMp,
-    maxMp: baseMp,
-    attack: baseAtk,
-    defense: baseDef,
-    speed: character.baseStats.speed + levelBonus * 1 + equipSpd,
+    currentHp: totalStats.hp,
+    maxHp: totalStats.hp,
+    currentMp: totalStats.mp,
+    maxMp: totalStats.mp,
+    attack: totalStats.atk,
+    defense: totalStats.def,
+    speed: Math.round(totalStats.spd),
     statusEffects: [],
     isAlive: true,
   };
@@ -307,42 +217,13 @@ export function initBattle(
     isAvailable: s.type === 'active',
   }));
 
-  // Calculate crit stats including equipment bonuses
-  let equipCritRate = 0, equipCritDmg = 0;
-  for (const slotItemId of Object.values(saveData.equippedItems)) {
-    if (!slotItemId) continue;
-    const itemDef = ITEMS.find((i) => i.id === slotItemId);
-    if (!itemDef?.stats) continue;
-    const enh = saveData.enhanceLevels?.[slotItemId];
-    const mult = 1 + (enh?.level ?? 0);
-    equipCritRate += (itemDef.stats.critRate ?? 0) * mult;
-    equipCritDmg += (itemDef.stats.critDamage ?? 0) * mult;
-  }
-  // Add socketed gem crit stats
-  for (const slotItemId of Object.values(saveData.equippedItems)) {
-    if (!slotItemId) continue;
-    const sockets = saveData.socketedGems?.[slotItemId] ?? [];
-    for (const gemId of sockets) {
-      const gem = GEMS.find((g) => g.id === gemId);
-      if (!gem) continue;
-      if (gem.stat === 'critRate') equipCritRate += gem.value;
-      else if (gem.stat === 'critDamage') equipCritDmg += gem.value;
-    }
-  }
-
-  battleStore.set(battleState.id, battleState);
-  skillStateStore.set(battleState.id, skillStates);
-  battleDungeonMap.set(battleState.id, dungeonId);
-  // Add random option crit bonuses
-  equipCritRate += randOpts.critRate / 100;
-  equipCritDmg += randOpts.critDamage / 100;
-
+  // Use shared crit stats from calculateTotalStats
   battleStore.set(battleState.id, battleState);
   skillStateStore.set(battleState.id, skillStates);
   battleDungeonMap.set(battleState.id, dungeonId);
   battleCritMap.set(battleState.id, {
-    critRate: character.baseStats.critRate + equipCritRate + statMods.critRateFlat + petCritRateBonus + talentMods.critRateFlat,
-    critDamage: (character.baseStats.critDamage + equipCritDmg) * (1 + statMods.critDmgPercent / 100) * (1 + talentMods.critDmgPercent / 100),
+    critRate: totalStats.crit,
+    critDamage: totalStats.critDmg,
   });
   battleSetActiveMap.set(battleState.id, setActives);
   battlePrestigeMap.set(battleState.id, saveData.prestigeLevel ?? 0);
@@ -363,6 +244,25 @@ export function initBattle(
     dungeonId,
     saveData: { ...saveData },
   });
+
+  // Pet combat info
+  if (saveData.activePet) {
+    const pet = PETS.find((p) => p.id === saveData.activePet);
+    if (pet) {
+      battlePetMap.set(battleState.id, {
+        name: pet.name,
+        attack: pet.attack,
+        level: saveData.petLevels?.[saveData.activePet] ?? 0,
+      });
+    }
+  }
+
+  // Initialize proc state + keystone effects
+  battleEquippedMap.set(battleState.id, equippedIds);
+  battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
+  battleKeystoneMap.set(battleState.id, totalStats.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
+  battleUndyingUsed.set(battleState.id, false);
+  battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
 
   return { battleState, skillStates, waveIndex, totalWaves: dungeon.waves.length };
 }
@@ -397,8 +297,10 @@ export function calculateDamage(
   isCrit: boolean,
   critDamage: number = 1.5,
 ): number {
-  const raw = attackerAtk * multiplier - defenderDef * 0.5;
-  const afterCrit = raw * (isCrit ? critDamage : 1);
+  const raw = attackerAtk * multiplier;
+  const reduction = defenderDef / (defenderDef + raw);
+  const afterDef = raw * (1 - reduction);
+  const afterCrit = afterDef * (isCrit ? critDamage : 1);
   return Math.max(1, Math.round(afterCrit));
 }
 
@@ -481,6 +383,14 @@ export function executePlayerAction(
   const skill = SKILLS.find((s) => s.id === skillId);
   if (!skill) return { error: 'Skill not found' };
 
+  // Check equipped skills (if set and non-empty, only allow equipped skills + basic attack)
+  const equippedSkills = battleEquippedSkillsMap.get(battleState.id);
+  if (equippedSkills && equippedSkills.length > 0) {
+    if (skillId !== 'common_basic_attack' && !equippedSkills.includes(skillId)) {
+      return { error: '장착되지 않은 스킬입니다' };
+    }
+  }
+
   // Mana check
   if (player.currentMp < skill.manaCost) {
     return { error: 'MP가 부족합니다' };
@@ -525,16 +435,266 @@ export function executePlayerAction(
     battleState.stats.skillsUsed += 1;
   }
 
+  // Roll proc effects from equipped items
+  const procState = battleProcState.get(battleState.id);
+  const equippedIds = battleEquippedMap.get(battleState.id) ?? [];
+  let procCritBoost = 0;
+  if (procState) {
+    for (const slotItemId of equippedIds) {
+      const itemDef = ITEMS.find(i => i.id === slotItemId);
+      if (!itemDef?.procEffect) continue;
+
+      const cd = procState.cooldowns[slotItemId] ?? 0;
+      if (cd > 0) continue;
+
+      if (Math.random() < itemDef.procEffect.chance) {
+        const proc = itemDef.procEffect;
+        procState.cooldowns[slotItemId] = proc.cooldown;
+
+        switch (proc.type) {
+          case 'atk_boost':
+            player.statusEffects.push({ type: 'attack_up', remainingTurns: proc.duration, value: Math.round(player.attack * proc.value / 100) });
+            battleState.log.push({ turn: battleState.turn, message: `[발동] ${itemDef.name}: ${proc.description}`, type: 'buff' });
+            break;
+          case 'def_boost':
+            player.statusEffects.push({ type: 'defense_up', remainingTurns: proc.duration, value: Math.round(player.defense * proc.value / 100) });
+            battleState.log.push({ turn: battleState.turn, message: `[발동] ${itemDef.name}: ${proc.description}`, type: 'buff' });
+            break;
+          case 'speed_boost':
+            procState.activeBuffs.push({ type: 'speed_boost', value: proc.value, remainingTurns: proc.duration });
+            battleState.log.push({ turn: battleState.turn, message: `[발동] ${itemDef.name}: ${proc.description}`, type: 'buff' });
+            break;
+          case 'crit_boost':
+            procState.activeBuffs.push({ type: 'crit_boost', value: proc.value / 100, remainingTurns: proc.duration });
+            battleState.log.push({ turn: battleState.turn, message: `[발동] ${itemDef.name}: ${proc.description}`, type: 'buff' });
+            break;
+          case 'heal_burst': {
+            const healAmount = Math.round(player.maxHp * proc.value / 100);
+            player.currentHp = Math.min(player.maxHp, player.currentHp + healAmount);
+            battleState.log.push({ turn: battleState.turn, message: `[발동] ${itemDef.name}: HP ${healAmount} 회복!`, type: 'heal' });
+            break;
+          }
+          case 'extra_damage':
+            procState.activeBuffs.push({ type: 'extra_damage', value: proc.value, remainingTurns: proc.duration });
+            battleState.log.push({ turn: battleState.turn, message: `[발동] ${itemDef.name}: ${proc.description}`, type: 'buff' });
+            break;
+        }
+      }
+    }
+
+    // Apply existing crit_boost buffs from previous turns
+    for (const buff of procState.activeBuffs) {
+      if (buff.type === 'crit_boost') procCritBoost += buff.value;
+    }
+  }
+
+  // ── Special: mana_restore_50 — restore 50% of max MP instead of normal action ──
+  if (skill.special === 'mana_restore_50') {
+    const restored = Math.round(player.maxMp * 0.5);
+    player.currentMp = Math.min(player.maxMp, player.currentMp + restored);
+    battleState.log.push({ turn: battleState.turn, message: `${player.name}의 ${skill.name} → MP ${restored} 회복!`, type: 'heal' });
+    results.push({
+      actionType: 'skill',
+      actorId: player.id,
+      targetId: player.id,
+      damage: 0,
+      heal: 0,
+      isCritical: false,
+      statusApplied: null,
+      targetDefeated: false,
+    });
+    // Apply status effect if any
+    if (skill.statusEffect) {
+      const activeEffect: ActiveStatusEffect = {
+        type: skill.statusEffect.type,
+        remainingTurns: skill.statusEffect.duration,
+        value: skill.statusEffect.value,
+      };
+      player.statusEffects.push(activeEffect);
+    }
+  } else {
+  // ── Normal + special damage handling ──
+  const _skill = skill; // capture for nested function (TS narrowing)
+
+  // Helper: perform one hit of damage calculation with all bonuses
+  function performSingleHit(
+    hitTarget: BattleFighter,
+    forceCrit: boolean | null, // null = roll, true = guaranteed crit, false = no crit
+  ): { hitDamage: number; hitIsCrit: boolean } {
+    const hitIsCrit = forceCrit !== null ? forceCrit : Math.random() < (baseCritRate + procCritBoost);
+
+    const keystones = battleKeystoneMap.get(battleState.id) ?? [];
+    const getKR = (id: string) => keystones.find(k => k.id === id)?.ratio ?? 0;
+
+    const skillLevel = battleSkillLevelMap.get(battleState.id)?.[skillId] ?? 0;
+    const effectiveMultiplier = _skill.damageMultiplier * (1 + skillLevel * 0.05);
+
+    let effectiveDef = getEffectiveDefense(hitTarget);
+    const penRatio = getKR('masterPenetration');
+    if (penRatio > 0) {
+      const ignored = Math.round(effectiveDef * 0.4 * penRatio);
+      effectiveDef -= ignored;
+    }
+
+    let manaBonus = 1;
+    const manaRatio = getKR('manaOverload');
+    if (manaRatio > 0 && player.maxMp > 0) {
+      manaBonus = 1 + (player.currentMp / player.maxMp) * manaRatio;
+    }
+
+    let hitDamage = calculateDamage(getEffectiveAttack(player), effectiveDef, effectiveMultiplier * manaBonus, hitIsCrit, baseCritDmg);
+
+    const execRatio = getKR('executioner');
+    if (execRatio > 0 && hitTarget.currentHp / hitTarget.maxHp <= 0.3) {
+      hitDamage = Math.round(hitDamage * (1 + execRatio));
+    }
+
+    const talentBonuses = battleTalentMap.get(battleState.id);
+    if (talentBonuses && talentBonuses.totalDmgPercent > 0) {
+      hitDamage = Math.round(hitDamage * (1 + talentBonuses.totalDmgPercent / 100));
+    }
+
+    const setActives = battleSetActiveMap.get(battleState.id) ?? [];
+    for (const sa of setActives) {
+      if (sa && sa.type === 'bonus_damage' && Math.random() < (sa.chance ?? 0)) {
+        hitDamage += Math.round(hitDamage * sa.value / 100);
+      }
+    }
+
+    return { hitDamage, hitIsCrit };
+  }
+
+  // Determine if this is a multi-hit special
+  let multiHitCount = 0;
+  let multiHitForceCrit = false;
+  if (skill.special === 'multi_hit_3_5') {
+    multiHitCount = 3 + Math.floor(Math.random() * 3); // 3-5 hits
+  } else if (skill.special === 'multi_hit_5_crit') {
+    multiHitCount = 5;
+    multiHitForceCrit = true;
+  }
+
   for (const target of targets) {
-    const isCrit = Math.random() < baseCritRate;
+    const isCrit = Math.random() < (baseCritRate + procCritBoost);
     let damage = 0;
     let heal = 0;
 
-    // Damage (with buff effects + skill level bonus)
+    // ── Special: execute_20 — instant kill if target HP <= 20% (non-boss) ──
+    if (skill.special === 'execute_20' && target.id !== 'player') {
+      const isBoss = target.name.includes('보스') || (target.monsterId ?? '').includes('boss');
+      if (!isBoss && target.currentHp / target.maxHp <= 0.2) {
+        damage = target.currentHp;
+        target.currentHp = 0;
+        target.isAlive = false;
+        battleState.log.push({ turn: battleState.turn, message: `[처형] ${target.name} 즉사! (HP 20% 이하)`, type: 'damage' });
+        if (battleState.stats) battleState.stats.totalDamageDealt += damage;
+        results.push({
+          actionType: 'skill', actorId: player.id, targetId: target.id,
+          damage, heal: 0, isCritical: false, statusApplied: null, targetDefeated: true,
+        });
+        battleState.log.push({ turn: battleState.turn, message: `${target.name} 처치!`, type: 'defeat' });
+        continue; // skip normal damage for this target
+      }
+      // Otherwise fall through to normal damage
+    }
+
+    // ── Special: poison_burst — 3x damage if target has poison ──
+    let poisonBurstMultiplier = 1;
+    if (skill.special === 'poison_burst' && target.id !== 'player') {
+      if (target.statusEffects.some(e => e.type === 'poison')) {
+        poisonBurstMultiplier = 3;
+        battleState.log.push({ turn: battleState.turn, message: `[독 폭발] ${target.name}의 독이 폭발! 피해 3배!`, type: 'buff' });
+      }
+    }
+
+    // ── Multi-hit specials ──
+    if (multiHitCount > 0 && skill.damageMultiplier > 0 && target.id !== 'player') {
+      let totalMultiDmg = 0;
+      for (let hitIdx = 0; hitIdx < multiHitCount; hitIdx++) {
+        if (!target.isAlive) break;
+        const { hitDamage, hitIsCrit } = performSingleHit(target, multiHitForceCrit ? true : null);
+        const finalHitDmg = Math.round(hitDamage * poisonBurstMultiplier);
+        target.currentHp = Math.max(0, target.currentHp - finalHitDmg);
+        target.isAlive = target.currentHp > 0;
+        totalMultiDmg += finalHitDmg;
+        const critText = hitIsCrit ? ' (치명타!)' : '';
+        battleState.log.push({
+          turn: battleState.turn,
+          message: `${player.name}의 ${skill.name} [${hitIdx + 1}/${multiHitCount}] → ${target.name}에게 ${finalHitDmg} 데미지${critText}`,
+          type: 'damage',
+        });
+        if (battleState.stats) {
+          battleState.stats.totalDamageDealt += finalHitDmg;
+          if (hitIsCrit && finalHitDmg > battleState.stats.highestCrit) {
+            battleState.stats.highestCrit = finalHitDmg;
+          }
+        }
+      }
+      damage = totalMultiDmg;
+
+      // Lifesteal for multi-hit (special: lifesteal_30 not applicable here but keep vampire keystone)
+      const keystones = battleKeystoneMap.get(battleState.id) ?? [];
+      const vampRatio = (keystones.find(k => k.id === 'vampire')?.ratio ?? 0);
+      if (vampRatio > 0 && damage > 0) {
+        const vampHeal = Math.round(damage * 0.15 * vampRatio);
+        if (vampHeal > 0) {
+          player.currentHp = Math.min(player.maxHp, player.currentHp + vampHeal);
+          battleState.log.push({ turn: battleState.turn, message: `[흡혈귀] HP ${vampHeal.toLocaleString()} 회복`, type: 'heal' });
+        }
+      }
+
+      results.push({
+        actionType: 'skill', actorId: player.id, targetId: target.id,
+        damage, heal: 0, isCritical: false, statusApplied: null,
+        targetDefeated: !target.isAlive,
+      });
+      if (!target.isAlive) {
+        battleState.log.push({ turn: battleState.turn, message: `${target.name} 처치!`, type: 'defeat' });
+      }
+      continue; // skip normal single-hit path
+    }
+
+    // ── Normal single-hit damage ──
+    // Damage (with buff effects + skill level bonus + keystone effects)
     if (skill.damageMultiplier > 0 && target.id !== 'player') {
+      const keystones = battleKeystoneMap.get(battleState.id) ?? [];
+      const getKR = (id: string) => keystones.find(k => k.id === id)?.ratio ?? 0;
+
       const skillLevel = battleSkillLevelMap.get(battleState.id)?.[skillId] ?? 0;
       const effectiveMultiplier = skill.damageMultiplier * (1 + skillLevel * 0.05);
-      damage = calculateDamage(getEffectiveAttack(player), getEffectiveDefense(target), effectiveMultiplier, isCrit, baseCritDmg);
+
+      // Keystone: masterPenetration — 관통의 달인: 방어력 무시 (최대 40%)
+      let effectiveDef = getEffectiveDefense(target);
+      const penRatio = getKR('masterPenetration');
+      if (penRatio > 0) {
+        const ignored = Math.round(effectiveDef * 0.4 * penRatio);
+        effectiveDef -= ignored;
+        battleState.log.push({ turn: battleState.turn, message: `[관통의 달인] 방어력 ${ignored} 무시 (${Math.round(penRatio * 40)}%)`, type: 'buff' });
+      }
+
+      // Keystone: manaOverload — 마력폭주: 남은 MP% 만큼 스킬 데미지 증가
+      let manaBonus = 1;
+      const manaRatio = getKR('manaOverload');
+      if (manaRatio > 0 && player.maxMp > 0) {
+        manaBonus = 1 + (player.currentMp / player.maxMp) * manaRatio;
+        battleState.log.push({ turn: battleState.turn, message: `[마력폭주] 스킬 데미지 +${Math.round((manaBonus - 1) * 100)}% (MP ${Math.round(player.currentMp / player.maxMp * 100)}%)`, type: 'buff' });
+      }
+
+      damage = calculateDamage(getEffectiveAttack(player), effectiveDef, effectiveMultiplier * manaBonus, isCrit, baseCritDmg);
+
+      // Apply poison_burst multiplier
+      if (poisonBurstMultiplier > 1) {
+        damage = Math.round(damage * poisonBurstMultiplier);
+      }
+
+      // Keystone: executioner — 처형자: 적 HP 30% 이하일 때 데미지 증가 (최대 2배)
+      const execRatio = getKR('executioner');
+      if (execRatio > 0 && target.currentHp / target.maxHp <= 0.3) {
+        const execBonus = 1 + execRatio;
+        const beforeDmg = damage;
+        damage = Math.round(damage * execBonus);
+        battleState.log.push({ turn: battleState.turn, message: `[처형자] 처형 데미지! ${beforeDmg} → ${damage} (x${execBonus.toFixed(1)})`, type: 'buff' });
+      }
 
       // Premium talent: totalDmgPercent
       const talentBonuses = battleTalentMap.get(battleState.id);
@@ -552,6 +712,19 @@ export function executePlayerAction(
         }
       }
 
+      // Apply proc extra_damage buff
+      if (procState) {
+        for (const buff of procState.activeBuffs) {
+          if (buff.type === 'extra_damage') {
+            const extraDmg = Math.round(damage * buff.value / 100);
+            damage += extraDmg;
+            battleState.log.push({ turn: battleState.turn, message: `[발동 효과] 추가 피해 ${extraDmg}!`, type: 'buff' });
+          }
+        }
+        // Consume extra_damage buffs (they are single-use)
+        procState.activeBuffs = procState.activeBuffs.filter(b => b.type !== 'extra_damage');
+      }
+
       target.currentHp = Math.max(0, target.currentHp - damage);
       target.isAlive = target.currentHp > 0;
 
@@ -561,6 +734,44 @@ export function executePlayerAction(
         if (isCrit && damage > battleState.stats.highestCrit) {
           battleState.stats.highestCrit = damage;
         }
+      }
+
+      // ── Special: lifesteal_30 — heal 30% of damage dealt ──
+      if (skill.special === 'lifesteal_30' && damage > 0) {
+        const lsHeal = Math.round(damage * 0.3);
+        player.currentHp = Math.min(player.maxHp, player.currentHp + lsHeal);
+        battleState.log.push({ turn: battleState.turn, message: `[흡혈] HP ${lsHeal.toLocaleString()} 회복 (피해의 30%)`, type: 'heal' });
+      }
+
+      // Keystone: vampire — 흡혈귀: 흡혈 (최대 15%)
+      const vampRatio = getKR('vampire');
+      if (vampRatio > 0 && damage > 0) {
+        const vampHeal = Math.round(damage * 0.15 * vampRatio);
+        if (vampHeal > 0) {
+          player.currentHp = Math.min(player.maxHp, player.currentHp + vampHeal);
+          battleState.log.push({ turn: battleState.turn, message: `[흡혈귀] HP ${vampHeal.toLocaleString()} 회복 (${Math.round(vampRatio * 15)}%)`, type: 'heal' });
+        }
+      }
+
+      // Keystone: poisonMaster — 맹독술사: 모든 공격에 독 (최대 3턴)
+      const poisonRatio = getKR('poisonMaster');
+      if (poisonRatio > 0 && target.isAlive) {
+        const poisonTurns = Math.max(1, Math.round(3 * poisonRatio));
+        const poisonDmg = Math.round(damage * 0.1);
+        if (!target.statusEffects.some(e => e.type === 'poison')) {
+          target.statusEffects.push({ type: 'poison', remainingTurns: poisonTurns, value: poisonDmg });
+          battleState.log.push({ turn: battleState.turn, message: `[맹독술사] ${target.name}에게 독 ${poisonTurns}턴 (턴당 ${poisonDmg.toLocaleString()})`, type: 'debuff' });
+        }
+      }
+
+      // Keystone: doubleStrike — 질풍연타: 2회 공격 (최대 20% 확률)
+      const doubleRatio = getKR('doubleStrike');
+      if (doubleRatio > 0 && target.isAlive && Math.random() < 0.2 * doubleRatio) {
+        const extraDmg = calculateDamage(getEffectiveAttack(player), effectiveDef, effectiveMultiplier, false, baseCritDmg);
+        target.currentHp = Math.max(0, target.currentHp - extraDmg);
+        target.isAlive = target.currentHp > 0;
+        if (battleState.stats) battleState.stats.totalDamageDealt += extraDmg;
+        battleState.log.push({ turn: battleState.turn, message: `[질풍연타] 추가 공격! ${extraDmg.toLocaleString()} 데미지 (${Math.round(doubleRatio * 20)}% 확률)`, type: 'damage' });
       }
 
       // Set active: lifesteal_on_crit (크리 흡혈)
@@ -577,7 +788,12 @@ export function executePlayerAction(
 
     // Heal
     if (skill.healMultiplier > 0) {
-      heal = Math.round(player.attack * skill.healMultiplier);
+      // ── Special: regen_percent — heal based on % of max HP ──
+      if (skill.special === 'regen_percent' && skill.statusEffect) {
+        heal = Math.round(player.maxHp * (skill.statusEffect.value / 100));
+      } else {
+        heal = Math.round(player.attack * skill.healMultiplier);
+      }
       player.currentHp = Math.min(player.maxHp, player.currentHp + heal);
     }
 
@@ -638,6 +854,36 @@ export function executePlayerAction(
         message: `${target.name} 처치!`,
         type: 'defeat',
       });
+    }
+  }
+  } // end else (non-mana_restore_50)
+
+  // Pet auto-attack
+  const petInfo = battlePetMap.get(battleState.id);
+  if (petInfo) {
+    const aliveEnemy = battleState.enemies.find(e => e.isAlive);
+    if (aliveEnemy) {
+      const petDmg = Math.max(1, Math.round(petInfo.attack * (1 + petInfo.level * 0.1)));
+      aliveEnemy.currentHp = Math.max(0, aliveEnemy.currentHp - petDmg);
+      aliveEnemy.isAlive = aliveEnemy.currentHp > 0;
+
+      battleState.log.push({
+        turn: battleState.turn,
+        message: `[펫] ${petInfo.name}의 공격 → ${aliveEnemy.name}에게 ${petDmg} 데미지`,
+        type: 'damage',
+      });
+
+      if (!aliveEnemy.isAlive) {
+        battleState.log.push({
+          turn: battleState.turn,
+          message: `${aliveEnemy.name} 처치!`,
+          type: 'defeat',
+        });
+      }
+
+      if (battleState.stats) {
+        battleState.stats.totalDamageDealt += petDmg;
+      }
     }
   }
 
@@ -711,8 +957,28 @@ export function executeEnemyTurn(battleState: BattleState): BattleResult[] {
       damage = Math.max(1, damage);
     }
 
+    // Keystone: ironWall — 철벽방어: 받는 피해 감소 (최대 30%)
+    const keystones = battleKeystoneMap.get(battleState.id) ?? [];
+    const getKR = (id: string) => keystones.find(k => k.id === id)?.ratio ?? 0;
+    const ironWallRatio = getKR('ironWall');
+    if (ironWallRatio > 0) {
+      const beforeDmg = damage;
+      damage = Math.max(1, Math.round(damage * (1 - 0.3 * ironWallRatio)));
+      battleState.log.push({ turn: battleState.turn, message: `[철벽방어] 피해 ${Math.round(ironWallRatio * 30)}% 감소 (${beforeDmg.toLocaleString()} → ${damage.toLocaleString()})`, type: 'buff' });
+    }
+
     player.currentHp = Math.max(0, player.currentHp - damage);
     player.isAlive = player.currentHp > 0;
+
+    // Keystone: undying — 불사의 의지: 치명타 생존 (전투당 1회)
+    if (!player.isAlive && getKR('undying') > 0 && !battleUndyingUsed.get(battleState.id)) {
+      if (Math.random() < getKR('undying')) {
+        player.currentHp = 1;
+        player.isAlive = true;
+        battleUndyingUsed.set(battleState.id, true);
+        battleState.log.push({ turn: battleState.turn, message: `[불사의 의지] 죽음을 버텨냈습니다! HP 1 (발동확률 ${Math.round(getKR('undying') * 100)}%)`, type: 'system' });
+      }
+    }
 
     // Track damage taken
     if (battleState.stats && damage > 0) {
@@ -780,6 +1046,17 @@ export function executeEnemyTurn(battleState: BattleState): BattleResult[] {
     for (const ss of ssArr) {
       if (ss.currentCooldown > 0) ss.currentCooldown -= 1;
     }
+  }
+
+  // Tick proc cooldowns and active buffs
+  const procState = battleProcState.get(battleState.id);
+  if (procState) {
+    for (const key of Object.keys(procState.cooldowns)) {
+      if (procState.cooldowns[key] > 0) procState.cooldowns[key] -= 1;
+    }
+    procState.activeBuffs = procState.activeBuffs
+      .map(b => ({ ...b, remainingTurns: b.remainingTurns - 1 }))
+      .filter(b => b.remainingTurns > 0);
   }
 
   // MP natural recovery (3% of max per turn) + set active bonuses + talent bonuses
@@ -1115,6 +1392,14 @@ export function calculateRewards(battleId: string, characterId: string): BattleR
     totalGold = Math.round(totalGold * (1 + talentGoldBonus.goldPercent / 100));
   }
 
+  // Keystone: plunderer — 골드/경험치/드랍 증가 (최대 50%)
+  const ksReward = battleKeystoneMap.get(battleId) ?? [];
+  const plunderRatio = ksReward.find(k => k.id === 'plunderer')?.ratio ?? 0;
+  if (plunderRatio > 0) {
+    totalGold = Math.round(totalGold * (1 + 0.5 * plunderRatio));
+    totalExp = Math.round(totalExp * (1 + 0.5 * plunderRatio));
+  }
+
   // Apply title gold bonus
   if (waveData?.saveData) {
     const titleId = waveData.saveData.equippedTitle ?? '';
@@ -1170,9 +1455,15 @@ export function removeBattle(id: string): void {
   battleTalentMap.delete(id);
   battleTitleMap.delete(id);
   battleRandomOptionMap.delete(id);
+  battlePetMap.delete(id);
+  battleEquippedMap.delete(id);
+  battleProcState.delete(id);
+  battleKeystoneMap.delete(id);
+  battleUndyingUsed.delete(id);
   battleWaveMap.delete(id);
   abyssFloorMap.delete(id);
   weeklyBossMap.delete(id);
+  battleEquippedSkillsMap.delete(id);
 }
 
 // ────────────────────────────────────────────────────────────
@@ -1208,129 +1499,23 @@ export function initAbyssBattle(
   const character = CHARACTERS.find((c) => c.id === saveData.characterId);
   if (!character) return { error: 'Character data not found' };
 
-  // Player stats (same as initBattle)
-  const levelBonus = saveData.level - 1;
-  let equipHp = 0, equipMp = 0, equipAtk = 0, equipDef = 0, equipSpd = 0;
-  let equipCritRate = 0, equipCritDmg = 0;
-
-  for (const slotItemId of Object.values(saveData.equippedItems)) {
-    if (!slotItemId) continue;
-    const itemDef = ITEMS.find((i) => i.id === slotItemId);
-    if (!itemDef?.stats) continue;
-    const enh = saveData.enhanceLevels?.[slotItemId];
-    const mult = 1 + (enh?.level ?? 0);
-    equipHp += (itemDef.stats.hp ?? 0) * mult;
-    equipMp += (itemDef.stats.mp ?? 0) * mult;
-    equipAtk += (itemDef.stats.attack ?? 0) * mult;
-    equipDef += (itemDef.stats.defense ?? 0) * mult;
-    equipSpd += (itemDef.stats.speed ?? 0) * mult;
-    equipCritRate += (itemDef.stats.critRate ?? 0) * mult;
-    equipCritDmg += (itemDef.stats.critDamage ?? 0) * mult;
-  }
-
-  // Add socketed gem stats
-  for (const slotGemId0 of Object.values(saveData.equippedItems)) {
-    if (!slotGemId0) continue;
-    const gemSockets0 = saveData.socketedGems?.[slotGemId0] ?? [];
-    for (const gid0 of gemSockets0) {
-      const gemData0 = GEMS.find((x) => x.id === gid0);
-      if (!gemData0) continue;
-      if (gemData0.stat === 'attack') equipAtk += gemData0.value;
-      else if (gemData0.stat === 'defense') equipDef += gemData0.value;
-      else if (gemData0.stat === 'hp') equipHp += gemData0.value;
-      else if (gemData0.stat === 'mp') equipMp += gemData0.value;
-      else if (gemData0.stat === 'speed') equipSpd += gemData0.value;
-      else if (gemData0.stat === 'critRate') equipCritRate += gemData0.value;
-      else if (gemData0.stat === 'critDamage') equipCritDmg += gemData0.value;
-    }
-  }
-
-  // Random option bonuses (flat) for abyss
-  const randOptsAbyss = calculateRandomOptionBonuses(saveData);
-  equipAtk += randOptsAbyss.atkFlat;
-  equipDef += randOptsAbyss.defFlat;
-  equipHp += randOptsAbyss.hpFlat;
-  equipSpd += randOptsAbyss.speedFlat;
-  equipCritRate += randOptsAbyss.critRate / 100;
-  equipCritDmg += randOptsAbyss.critDamage / 100;
-
-  // Set bonuses
+  // Player stats using shared calculator
+  const totalStatsAbyss = calculateTotalStats(saveData);
   const equippedIds = Object.values(saveData.equippedItems).filter(Boolean) as string[];
   const { statMods, actives: setActives } = calculateSetBonuses(equippedIds);
-
-  let baseHp = character.baseStats.maxHp + levelBonus * 15 + equipHp;
-  let baseMp = character.baseStats.maxMp + levelBonus * 5 + equipMp;
-  let baseAtk = character.baseStats.attack + levelBonus * 3 + equipAtk;
-  let baseDef = character.baseStats.defense + levelBonus * 2 + equipDef;
-
-  baseHp = Math.round(baseHp * (1 + statMods.hpPercent / 100));
-  baseMp = Math.round(baseMp * (1 + statMods.mpPercent / 100));
-  baseAtk = Math.round(baseAtk * (1 + statMods.atkPercent / 100));
-  baseDef = Math.round(baseDef * (1 + statMods.defPercent / 100));
-
-  // Prestige bonus
-  const prestigeBonusAbyss = 1 + (saveData.prestigeLevel ?? 0) * 0.02;
-  baseHp = Math.round(baseHp * prestigeBonusAbyss);
-  baseMp = Math.round(baseMp * prestigeBonusAbyss);
-  baseAtk = Math.round(baseAtk * prestigeBonusAbyss);
-  baseDef = Math.round(baseDef * prestigeBonusAbyss);
-
-  // Talent bonuses (abyss)
-  const talentModsAbyss = calculateTalentBonuses(saveData.talentPoints ?? {});
-  baseHp = Math.round(baseHp * (1 + talentModsAbyss.hpPercent / 100));
-  baseMp = Math.round(baseMp * (1 + talentModsAbyss.mpPercent / 100));
-  baseAtk = Math.round(baseAtk * (1 + talentModsAbyss.atkPercent / 100));
-  baseDef = Math.round(baseDef * (1 + talentModsAbyss.defPercent / 100));
-
-  // Title bonus (abyss)
-  const equippedTitleIdAbyss = saveData.equippedTitle ?? '';
-  if (equippedTitleIdAbyss) {
-    const titleDefAbyss = TITLES.find((t) => t.id === equippedTitleIdAbyss);
-    if (titleDefAbyss?.bonus) {
-      if (titleDefAbyss.bonus.stat === 'atkPercent') baseAtk = Math.round(baseAtk * (1 + titleDefAbyss.bonus.value / 100));
-      if (titleDefAbyss.bonus.stat === 'defPercent') baseDef = Math.round(baseDef * (1 + titleDefAbyss.bonus.value / 100));
-      if (titleDefAbyss.bonus.stat === 'hpPercent') baseHp = Math.round(baseHp * (1 + titleDefAbyss.bonus.value / 100));
-      if (titleDefAbyss.bonus.stat === 'mpPercent') baseMp = Math.round(baseMp * (1 + titleDefAbyss.bonus.value / 100));
-    }
-  }
-
-  // Pet bonus (abyss)
-  let petCritRateBonusAbyss = 0;
-  if (saveData.activePet) {
-    const pet = PETS.find((p) => p.id === saveData.activePet);
-    if (pet) {
-      for (const b of pet.bonus) {
-        if (b.stat === 'atkPercent') baseAtk = Math.round(baseAtk * (1 + b.value / 100));
-        if (b.stat === 'defPercent') baseDef = Math.round(baseDef * (1 + b.value / 100));
-        if (b.stat === 'hpPercent') baseHp = Math.round(baseHp * (1 + b.value / 100));
-        if (b.stat === 'mpPercent') baseMp = Math.round(baseMp * (1 + b.value / 100));
-        if (b.stat === 'critRateFlat') petCritRateBonusAbyss += b.value;
-      }
-    }
-  }
-
-  // Artifact bonus (abyss)
-  const artBonusesAbyss = getArtifactBonuses(saveData.artifacts);
-  const allPctAbyss = artBonusesAbyss.allPercent ?? 0;
-  baseHp = Math.round(baseHp * (1 + (allPctAbyss + (artBonusesAbyss.hpPercent ?? 0)) / 100));
-  baseMp = Math.round(baseMp * (1 + (allPctAbyss + (artBonusesAbyss.mpPercent ?? 0)) / 100));
-  baseAtk = Math.round(baseAtk * (1 + (allPctAbyss + (artBonusesAbyss.atkPercent ?? 0)) / 100));
-  baseDef = Math.round(baseDef * (1 + (allPctAbyss + (artBonusesAbyss.defPercent ?? 0)) / 100));
-
-  // Random option percent bonuses (abyss)
-  if (randOptsAbyss.atkPercent > 0) baseAtk = Math.round(baseAtk * (1 + randOptsAbyss.atkPercent / 100));
-  if (randOptsAbyss.hpPercent > 0) baseHp = Math.round(baseHp * (1 + randOptsAbyss.hpPercent / 100));
+  const talentModsAbyss = calculatePassiveTreeBonuses(saveData.passiveTree?.allocatedNodes ?? []);
+  const randOptsAbyss = calculateRandomOptionBonuses(saveData);
 
   const player: BattleFighter = {
     id: 'player',
     name: saveData.playerName,
-    currentHp: baseHp,
-    maxHp: baseHp,
-    currentMp: baseMp,
-    maxMp: baseMp,
-    attack: baseAtk,
-    defense: baseDef,
-    speed: character.baseStats.speed + levelBonus * 1 + equipSpd,
+    currentHp: totalStatsAbyss.hp,
+    maxHp: totalStatsAbyss.hp,
+    currentMp: totalStatsAbyss.mp,
+    maxMp: totalStatsAbyss.mp,
+    attack: totalStatsAbyss.atk,
+    defense: totalStatsAbyss.def,
+    speed: Math.round(totalStatsAbyss.spd),
     statusEffects: [],
     isAlive: true,
   };
@@ -1403,8 +1588,8 @@ export function initAbyssBattle(
   skillStateStore.set(battleState.id, skillStates);
   battleDungeonMap.set(battleState.id, '__abyss__');
   battleCritMap.set(battleState.id, {
-    critRate: character.baseStats.critRate + equipCritRate + statMods.critRateFlat + petCritRateBonusAbyss + talentModsAbyss.critRateFlat,
-    critDamage: (character.baseStats.critDamage + equipCritDmg) * (1 + statMods.critDmgPercent / 100) * (1 + talentModsAbyss.critDmgPercent / 100),
+    critRate: totalStatsAbyss.crit,
+    critDamage: totalStatsAbyss.critDmg,
   });
   battleSetActiveMap.set(battleState.id, setActives);
   battlePrestigeMap.set(battleState.id, saveData.prestigeLevel ?? 0);
@@ -1421,6 +1606,25 @@ export function initAbyssBattle(
   });
   abyssFloorMap.set(battleState.id, floor);
 
+  // Pet combat info (abyss)
+  if (saveData.activePet) {
+    const pet = PETS.find((p) => p.id === saveData.activePet);
+    if (pet) {
+      battlePetMap.set(battleState.id, {
+        name: pet.name,
+        attack: pet.attack,
+        level: saveData.petLevels?.[saveData.activePet] ?? 0,
+      });
+    }
+  }
+
+  // Initialize proc state + keystone effects (abyss)
+  battleEquippedMap.set(battleState.id, equippedIds);
+  battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
+  battleKeystoneMap.set(battleState.id, totalStatsAbyss.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
+  battleUndyingUsed.set(battleState.id, false);
+  battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
+
   return { battleState, skillStates, floor };
 }
 
@@ -1434,7 +1638,7 @@ export function calculateAbyssRewards(battleId: string, characterId: string): Ba
 
   // Base rewards scale with floor
   let totalExp = Math.floor(15000 * mult * 0.1);
-  let totalGold = Math.floor(15000 * mult * 0.1);
+  let totalGold = Math.floor(15000 * mult * 0.05);
   const items: { itemId: string; quantity: number }[] = [];
 
   function addDrop(itemId: string) {
@@ -1596,129 +1800,23 @@ export function initWeeklyBossBattle(
   const character = CHARACTERS.find((c) => c.id === saveData.characterId);
   if (!character) return { error: 'Character data not found' };
 
-  // Player stats (same as initBattle)
-  const levelBonus = saveData.level - 1;
-  let equipHp = 0, equipMp = 0, equipAtk = 0, equipDef = 0, equipSpd = 0;
-  let equipCritRate = 0, equipCritDmg = 0;
-
-  for (const slotItemId of Object.values(saveData.equippedItems)) {
-    if (!slotItemId) continue;
-    const itemDef = ITEMS.find((i) => i.id === slotItemId);
-    if (!itemDef?.stats) continue;
-    const enh = saveData.enhanceLevels?.[slotItemId];
-    const mult = 1 + (enh?.level ?? 0);
-    equipHp += (itemDef.stats.hp ?? 0) * mult;
-    equipMp += (itemDef.stats.mp ?? 0) * mult;
-    equipAtk += (itemDef.stats.attack ?? 0) * mult;
-    equipDef += (itemDef.stats.defense ?? 0) * mult;
-    equipSpd += (itemDef.stats.speed ?? 0) * mult;
-    equipCritRate += (itemDef.stats.critRate ?? 0) * mult;
-    equipCritDmg += (itemDef.stats.critDamage ?? 0) * mult;
-  }
-
-  // Add socketed gem stats
-  for (const slotGemId1 of Object.values(saveData.equippedItems)) {
-    if (!slotGemId1) continue;
-    const gemSockets1 = saveData.socketedGems?.[slotGemId1] ?? [];
-    for (const gid1 of gemSockets1) {
-      const gemData1 = GEMS.find((x) => x.id === gid1);
-      if (!gemData1) continue;
-      if (gemData1.stat === 'attack') equipAtk += gemData1.value;
-      else if (gemData1.stat === 'defense') equipDef += gemData1.value;
-      else if (gemData1.stat === 'hp') equipHp += gemData1.value;
-      else if (gemData1.stat === 'mp') equipMp += gemData1.value;
-      else if (gemData1.stat === 'speed') equipSpd += gemData1.value;
-      else if (gemData1.stat === 'critRate') equipCritRate += gemData1.value;
-      else if (gemData1.stat === 'critDamage') equipCritDmg += gemData1.value;
-    }
-  }
-
-  // Random option bonuses (flat) for weekly boss
-  const randOptsWb = calculateRandomOptionBonuses(saveData);
-  equipAtk += randOptsWb.atkFlat;
-  equipDef += randOptsWb.defFlat;
-  equipHp += randOptsWb.hpFlat;
-  equipSpd += randOptsWb.speedFlat;
-  equipCritRate += randOptsWb.critRate / 100;
-  equipCritDmg += randOptsWb.critDamage / 100;
-
-  // Set bonuses
+  // Player stats using shared calculator
+  const totalStatsWb = calculateTotalStats(saveData);
   const equippedIds = Object.values(saveData.equippedItems).filter(Boolean) as string[];
   const { statMods, actives: setActives } = calculateSetBonuses(equippedIds);
-
-  let baseHp = character.baseStats.maxHp + levelBonus * 15 + equipHp;
-  let baseMp = character.baseStats.maxMp + levelBonus * 5 + equipMp;
-  let baseAtk = character.baseStats.attack + levelBonus * 3 + equipAtk;
-  let baseDef = character.baseStats.defense + levelBonus * 2 + equipDef;
-
-  baseHp = Math.round(baseHp * (1 + statMods.hpPercent / 100));
-  baseMp = Math.round(baseMp * (1 + statMods.mpPercent / 100));
-  baseAtk = Math.round(baseAtk * (1 + statMods.atkPercent / 100));
-  baseDef = Math.round(baseDef * (1 + statMods.defPercent / 100));
-
-  // Prestige bonus
-  const prestigeBonusWb = 1 + (saveData.prestigeLevel ?? 0) * 0.02;
-  baseHp = Math.round(baseHp * prestigeBonusWb);
-  baseMp = Math.round(baseMp * prestigeBonusWb);
-  baseAtk = Math.round(baseAtk * prestigeBonusWb);
-  baseDef = Math.round(baseDef * prestigeBonusWb);
-
-  // Talent bonuses (weekly boss)
-  const talentModsWb = calculateTalentBonuses(saveData.talentPoints ?? {});
-  baseHp = Math.round(baseHp * (1 + talentModsWb.hpPercent / 100));
-  baseMp = Math.round(baseMp * (1 + talentModsWb.mpPercent / 100));
-  baseAtk = Math.round(baseAtk * (1 + talentModsWb.atkPercent / 100));
-  baseDef = Math.round(baseDef * (1 + talentModsWb.defPercent / 100));
-
-  // Title bonus (weekly boss)
-  const titleIdWb = saveData.equippedTitle ?? '';
-  if (titleIdWb) {
-    const titleDefWb = TITLES.find((t) => t.id === titleIdWb);
-    if (titleDefWb?.bonus) {
-      if (titleDefWb.bonus.stat === 'atkPercent') baseAtk = Math.round(baseAtk * (1 + titleDefWb.bonus.value / 100));
-      if (titleDefWb.bonus.stat === 'defPercent') baseDef = Math.round(baseDef * (1 + titleDefWb.bonus.value / 100));
-      if (titleDefWb.bonus.stat === 'hpPercent') baseHp = Math.round(baseHp * (1 + titleDefWb.bonus.value / 100));
-      if (titleDefWb.bonus.stat === 'mpPercent') baseMp = Math.round(baseMp * (1 + titleDefWb.bonus.value / 100));
-    }
-  }
-
-  // Pet bonus (weekly boss)
-  let petCritRateBonusWb = 0;
-  if (saveData.activePet) {
-    const pet = PETS.find((p) => p.id === saveData.activePet);
-    if (pet) {
-      for (const b of pet.bonus) {
-        if (b.stat === 'atkPercent') baseAtk = Math.round(baseAtk * (1 + b.value / 100));
-        if (b.stat === 'defPercent') baseDef = Math.round(baseDef * (1 + b.value / 100));
-        if (b.stat === 'hpPercent') baseHp = Math.round(baseHp * (1 + b.value / 100));
-        if (b.stat === 'mpPercent') baseMp = Math.round(baseMp * (1 + b.value / 100));
-        if (b.stat === 'critRateFlat') petCritRateBonusWb += b.value;
-      }
-    }
-  }
-
-  // Artifact bonus (weekly boss)
-  const artBonusesWb = getArtifactBonuses(saveData.artifacts);
-  const allPctWb = artBonusesWb.allPercent ?? 0;
-  baseHp = Math.round(baseHp * (1 + (allPctWb + (artBonusesWb.hpPercent ?? 0)) / 100));
-  baseMp = Math.round(baseMp * (1 + (allPctWb + (artBonusesWb.mpPercent ?? 0)) / 100));
-  baseAtk = Math.round(baseAtk * (1 + (allPctWb + (artBonusesWb.atkPercent ?? 0)) / 100));
-  baseDef = Math.round(baseDef * (1 + (allPctWb + (artBonusesWb.defPercent ?? 0)) / 100));
-
-  // Random option percent bonuses (weekly boss)
-  if (randOptsWb.atkPercent > 0) baseAtk = Math.round(baseAtk * (1 + randOptsWb.atkPercent / 100));
-  if (randOptsWb.hpPercent > 0) baseHp = Math.round(baseHp * (1 + randOptsWb.hpPercent / 100));
+  const talentModsWb = calculatePassiveTreeBonuses(saveData.passiveTree?.allocatedNodes ?? []);
+  const randOptsWb = calculateRandomOptionBonuses(saveData);
 
   const player: BattleFighter = {
     id: 'player',
     name: saveData.playerName,
-    currentHp: baseHp,
-    maxHp: baseHp,
-    currentMp: baseMp,
-    maxMp: baseMp,
-    attack: baseAtk,
-    defense: baseDef,
-    speed: character.baseStats.speed + levelBonus * 1 + equipSpd,
+    currentHp: totalStatsWb.hp,
+    maxHp: totalStatsWb.hp,
+    currentMp: totalStatsWb.mp,
+    maxMp: totalStatsWb.mp,
+    attack: totalStatsWb.atk,
+    defense: totalStatsWb.def,
+    speed: Math.round(totalStatsWb.spd),
     statusEffects: [],
     isAlive: true,
   };
@@ -1765,8 +1863,8 @@ export function initWeeklyBossBattle(
   skillStateStore.set(battleState.id, skillStates);
   battleDungeonMap.set(battleState.id, '__weekly_boss__');
   battleCritMap.set(battleState.id, {
-    critRate: character.baseStats.critRate + equipCritRate + statMods.critRateFlat + petCritRateBonusWb,
-    critDamage: (character.baseStats.critDamage + equipCritDmg) * (1 + statMods.critDmgPercent / 100),
+    critRate: totalStatsWb.crit,
+    critDamage: totalStatsWb.critDmg,
   });
   battleSetActiveMap.set(battleState.id, setActives);
   battlePrestigeMap.set(battleState.id, saveData.prestigeLevel ?? 0);
@@ -1780,6 +1878,25 @@ export function initWeeklyBossBattle(
     reflect: randOptsWb.reflect,
     hpRegen: randOptsWb.hpRegen,
   });
+
+  // Pet combat info (weekly boss)
+  if (saveData.activePet) {
+    const pet = PETS.find((p) => p.id === saveData.activePet);
+    if (pet) {
+      battlePetMap.set(battleState.id, {
+        name: pet.name,
+        attack: pet.attack,
+        level: saveData.petLevels?.[saveData.activePet] ?? 0,
+      });
+    }
+  }
+
+  // Initialize proc state + keystone effects (weekly boss)
+  battleEquippedMap.set(battleState.id, equippedIds);
+  battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
+  battleKeystoneMap.set(battleState.id, totalStatsWb.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
+  battleUndyingUsed.set(battleState.id, false);
+  battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
 
   return { battleState, skillStates };
 }
@@ -1797,4 +1914,129 @@ export function calculateWeeklyBossRewards(battleId: string, characterId: string
   }
 
   return { exp: 30000, gold: 50000, items };
+}
+
+// ────────────────────────────────────────────────────────────
+// Prestige Trial Boss
+// ────────────────────────────────────────────────────────────
+
+export function initPrestigeTrialBattle(
+  saveData: SaveData,
+): { battleState: BattleState; skillStates: SkillState[]; error?: never } | { error: string } {
+  const character = CHARACTERS.find((c) => c.id === saveData.characterId);
+  if (!character) return { error: 'Character data not found' };
+
+  const totalStats = calculateTotalStats(saveData);
+  const prestigeLv = saveData.prestigeLevel ?? 0;
+  const scaleMult = 1 + prestigeLv * 0.01;
+
+  // Trial boss stats scale with player
+  const bossHp = Math.round(totalStats.atk * 50 * scaleMult);
+  const bossAtk = Math.round(totalStats.def * 3 * scaleMult);
+  const bossDef = Math.round(totalStats.atk * 0.3 * scaleMult);
+  const bossSpd = Math.round(totalStats.spd * 0.9);
+
+  // Boss pattern: extra abilities at higher prestige
+  const bossName = prestigeLv >= 30 ? '시련의 대수호자' : prestigeLv >= 10 ? '시련의 상급 수호자' : '시련의 수호자';
+
+  const enemies: BattleFighter[] = [{
+    id: 'enemy_0',
+    name: bossName,
+    monsterId: 'prestige_trial_boss',
+    currentHp: bossHp,
+    maxHp: bossHp,
+    currentMp: 0,
+    maxMp: 0,
+    attack: bossAtk,
+    defense: bossDef,
+    speed: bossSpd,
+    statusEffects: [],
+    isAlive: true,
+  }];
+
+  // Add minions at higher prestige
+  if (prestigeLv >= 20) {
+    const minionHp = Math.round(bossHp * 0.2);
+    const minionAtk = Math.round(bossAtk * 0.5);
+    for (let i = 0; i < Math.min(2, Math.floor(prestigeLv / 20)); i++) {
+      enemies.push({
+        id: `enemy_${i + 1}`,
+        name: `시련의 종자 ${String.fromCharCode(65 + i)}`,
+        monsterId: 'prestige_trial_minion',
+        currentHp: minionHp,
+        maxHp: minionHp,
+        currentMp: 0,
+        maxMp: 0,
+        attack: minionAtk,
+        defense: Math.round(bossDef * 0.5),
+        speed: bossSpd,
+        statusEffects: [],
+        isAlive: true,
+      });
+    }
+  }
+
+  const skillStates: SkillState[] = SKILLS
+    .filter((s) => s.characterId === saveData.characterId || s.characterId === 'common')
+    .filter((s) => s.type !== 'passive')
+    .map((s) => ({ skillId: s.id, currentCooldown: 0, isAvailable: true }));
+
+  const player: BattleFighter = {
+    id: 'player',
+    name: saveData.playerName,
+    currentHp: totalStats.hp,
+    maxHp: totalStats.hp,
+    currentMp: totalStats.mp,
+    maxMp: totalStats.mp,
+    attack: totalStats.atk,
+    defense: totalStats.def,
+    speed: Math.round(totalStats.spd),
+    statusEffects: [],
+    isAlive: true,
+  };
+
+  const battleState: BattleState = {
+    id: `trial_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    status: 'player_turn',
+    turn: 1,
+    player,
+    enemies,
+    actionQueue: [],
+    log: [{ turn: 0, message: `시련의 수호자가 나타났습니다! (환생 Lv.${prestigeLv + 1} 시련)`, type: 'system' }],
+    stats: { totalDamageDealt: 0, totalDamageTaken: 0, highestCrit: 0, turnsElapsed: 0, skillsUsed: 0 },
+  };
+
+  // Store battle state in maps
+  const equippedIds = Object.values(saveData.equippedItems).filter(Boolean) as string[];
+  const { statMods, actives: setActives } = calculateSetBonuses(equippedIds);
+  const talentMods = calculatePassiveTreeBonuses(saveData.passiveTree?.allocatedNodes ?? []);
+  const randOpts = calculateRandomOptionBonuses(saveData);
+
+  battleStore.set(battleState.id, battleState);
+  skillStateStore.set(battleState.id, skillStates);
+  battleDungeonMap.set(battleState.id, '__prestige_trial__');
+  battleCritMap.set(battleState.id, { critRate: totalStats.crit, critDamage: totalStats.critDmg });
+  battleSetActiveMap.set(battleState.id, setActives);
+  battlePrestigeMap.set(battleState.id, saveData.prestigeLevel ?? 0);
+  battleArtifactMap.set(battleState.id, getArtifactBonuses(saveData.artifacts));
+  battleSkillLevelMap.set(battleState.id, { ...(saveData.skillLevels ?? {}) });
+  battleTalentMap.set(battleState.id, talentMods);
+  battleTitleMap.set(battleState.id, saveData.equippedTitle ?? '');
+  battleRandomOptionMap.set(battleState.id, {
+    goldPercent: randOpts.goldPercent, expPercent: randOpts.expPercent,
+    lifesteal: randOpts.lifesteal, reflect: randOpts.reflect, hpRegen: randOpts.hpRegen,
+  });
+  battlePetMap.set(battleState.id, (() => {
+    if (!saveData.activePet) return undefined as any;
+    const pet = PETS.find(p => p.id === saveData.activePet);
+    if (!pet) return undefined as any;
+    return { name: pet.name, attack: pet.attack, level: saveData.petLevels?.[saveData.activePet] ?? 0 };
+  })());
+  battleEquippedMap.set(battleState.id, equippedIds);
+  battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
+  battleKeystoneMap.set(battleState.id, totalStats.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
+  battleUndyingUsed.set(battleState.id, false);
+  battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
+
+  return { battleState, skillStates };
 }

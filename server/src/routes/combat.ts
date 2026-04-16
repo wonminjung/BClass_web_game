@@ -588,9 +588,7 @@ router.post('/weekly-boss/start', (req: Request, res: Response): void => {
       return;
     }
 
-    // Mark attempt time
-    saveData.lastWeeklyBoss = new Date().toISOString();
-    AuthService.saveProgress(saveCode, saveData);
+    // Don't mark attempt time here — only on victory
 
     res.json({
       success: true,
@@ -638,6 +636,9 @@ router.post(
 
         if (endAfterPlayer === 'victory') {
           const saveData = AuthService.getSaveData(saveCode)!;
+
+          // Mark weekly boss cooldown on victory only
+          saveData.lastWeeklyBoss = new Date().toISOString();
 
           // Count kills
           const deadEnemies = battleState.enemies.filter(e => !e.isAlive).length;
@@ -706,6 +707,9 @@ router.post(
         battleState.status = 'victory';
         const saveData = AuthService.getSaveData(saveCode)!;
 
+        // Mark weekly boss cooldown on victory only
+        saveData.lastWeeklyBoss = new Date().toISOString();
+
         const deadEnemies2 = battleState.enemies.filter(e => !e.isAlive).length;
         if (!saveData.totalKills) saveData.totalKills = 0;
         saveData.totalKills += deadEnemies2;
@@ -761,6 +765,93 @@ router.post(
       });
     } catch (err) {
       console.error('[combat/weekly-boss/action]', err);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  },
+);
+
+// ── POST /prestige-trial/start ───────────────────────────────
+router.post('/prestige-trial/start', (req: Request, res: Response): void => {
+  try {
+    const saveCode = extractSaveCode(req, res);
+    if (!saveCode) return;
+    const saveData = AuthService.getSaveData(saveCode);
+    if (!saveData) { res.status(404).json({ success: false, message: 'Save data not found' }); return; }
+
+    const maxLevel = 300 + (saveData.prestigeLevel ?? 0);
+    if (saveData.level < maxLevel) {
+      res.status(400).json({ success: false, message: `맥스 레벨(${maxLevel})에 도달해야 시련에 도전할 수 있습니다` });
+      return;
+    }
+
+    const result = CombatService.initPrestigeTrialBattle(saveData);
+    if ('error' in result) { res.status(400).json({ success: false, message: result.error }); return; }
+
+    res.json({ success: true, battleState: result.battleState, skillStates: result.skillStates });
+  } catch (err) {
+    console.error('[combat/prestige-trial/start]', err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// ── POST /prestige-trial/action ─────────────────────────────
+router.post(
+  '/prestige-trial/action',
+  validate([
+    { name: 'battleId', type: 'string', minLength: 1 },
+    { name: 'skillId', type: 'string', minLength: 1 },
+    { name: 'targetId', type: 'string', minLength: 1 },
+  ]),
+  (req: Request, res: Response): void => {
+    try {
+      const saveCode = extractSaveCode(req, res);
+      if (!saveCode) return;
+      const { battleId, skillId, targetId } = req.body;
+
+      const battleState = CombatService.getBattle(battleId);
+      if (!battleState) { res.status(404).json({ success: false, message: 'Battle not found' }); return; }
+
+      const playerResult = CombatService.executePlayerAction(battleState, skillId, targetId);
+      if ('error' in playerResult) { res.status(400).json({ success: false, message: playerResult.error }); return; }
+
+      const endAfterPlayer = CombatService.checkBattleEnd(battleState);
+      if (endAfterPlayer) {
+        battleState.status = endAfterPlayer;
+        if (endAfterPlayer === 'victory') {
+          // Set trial cleared flag
+          const saveData = AuthService.getSaveData(saveCode)!;
+          saveData.prestigeTrialCleared = true;
+          AuthService.saveProgress(saveCode, saveData);
+        }
+        CombatService.removeBattle(battleId);
+        res.json({ success: true, battleState, saveData: AuthService.getSaveData(saveCode) });
+        return;
+      }
+
+      // Enemy turn
+      battleState.status = 'enemy_turn';
+      const enemyResults = CombatService.executeEnemyTurn(battleState);
+      CombatService.processStatusEffects(battleState.player);
+      for (const e of battleState.enemies) if (e.isAlive) CombatService.processStatusEffects(e);
+      battleState.turn += 1;
+
+      const endAfterEnemy = CombatService.checkBattleEnd(battleState);
+      if (endAfterEnemy) {
+        battleState.status = endAfterEnemy;
+        if (endAfterEnemy === 'victory') {
+          const saveData = AuthService.getSaveData(saveCode)!;
+          saveData.prestigeTrialCleared = true;
+          AuthService.saveProgress(saveCode, saveData);
+        }
+        CombatService.removeBattle(battleId);
+        res.json({ success: true, battleState, saveData: AuthService.getSaveData(saveCode) });
+        return;
+      }
+
+      battleState.status = 'player_turn';
+      res.json({ success: true, battleState, skillStates: CombatService.getSkillStates(battleId) });
+    } catch (err) {
+      console.error('[combat/prestige-trial/action]', err);
       res.status(500).json({ success: false, message: 'Internal server error' });
     }
   },

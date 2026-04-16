@@ -49,6 +49,11 @@ const petEmojis: Record<string, string> = {
   pet_unicorn: '\uD83E\uDD84',
   pet_demon: '\uD83D\uDC7F',
   pet_angel: '\uD83D\uDC7C',
+  pet_myth_dragon: '\uD83D\uDC32',
+  pet_myth_void: '\uD83D\uDC7E',
+  pet_myth_eagle: '\uD83E\uDD85',
+  pet_myth_unicorn: '\uD83E\uDD84',
+  pet_myth_reaper: '\uD83D\uDC80',
 };
 
 const statLabels: Record<string, string> = {
@@ -59,9 +64,14 @@ const statLabels: Record<string, string> = {
   critRateFlat: '치명타율',
 };
 
-function formatBonus(stat: string, value: number): string {
-  if (stat === 'critRateFlat') return `${statLabels[stat] ?? stat} +${Math.round(value * 100)}%`;
-  return `${statLabels[stat] ?? stat} +${value}%`;
+function formatBonus(stat: string, value: number, petMult: number): string {
+  const scaledValue = value * petMult;
+  if (stat === 'critRateFlat') return `${statLabels[stat] ?? stat} +${Math.round(scaledValue * 100)}%`;
+  return `${statLabels[stat] ?? stat} +${scaledValue.toFixed(1)}%`;
+}
+
+function getEnhanceCostForLevel(level: number): number {
+  return Math.min(10, level + 2);
 }
 
 function PetScreen() {
@@ -77,6 +87,8 @@ function PetScreen() {
 
   const ownedPets = saveData?.ownedPets ?? [];
   const activePet = saveData?.activePet ?? '';
+  const petLevels = saveData?.petLevels ?? {};
+  const petEnhanceExp = saveData?.petEnhanceExp ?? {};
 
   const handleSummon = useCallback(async (petId: string) => {
     if (loading) return;
@@ -147,15 +159,21 @@ function PetScreen() {
       {activePet && (() => {
         const pet = PETS.find((p) => p.id === activePet);
         if (!pet) return null;
+        const level = petLevels[pet.id] ?? 0;
+        const petMult = 1 + level * 0.1;
+        const combatAtk = Math.round(pet.attack * petMult);
         return (
           <Card className="mb-6 text-center">
             <p className="text-xs text-gray-500 mb-1">장착 중인 펫</p>
             <p className="text-3xl mb-1">{petEmojis[pet.id] ?? '?'}</p>
-            <p className={`text-lg font-bold ${rarityTextColors[pet.rarity]}`}>{pet.name}</p>
+            <p className={`text-lg font-bold ${rarityTextColors[pet.rarity]}`}>
+              {pet.name} {level > 0 && <span className="text-sm text-amber-400">+{level}</span>}
+            </p>
+            <p className="text-xs text-orange-400 mt-1">전투 공격력: {combatAtk}</p>
             <div className="flex flex-wrap justify-center gap-2 mt-2">
               {pet.bonus.map((b, i) => (
                 <span key={i} className="text-xs bg-dungeon-panel px-2 py-1 rounded text-green-400">
-                  {formatBonus(b.stat, b.value)}
+                  {formatBonus(b.stat, b.value, petMult)}
                 </span>
               ))}
             </div>
@@ -168,6 +186,11 @@ function PetScreen() {
         {PETS.map((pet) => {
           const owned = ownedPets.includes(pet.id);
           const isActive = activePet === pet.id;
+          const level = petLevels[pet.id] ?? 0;
+          const exp = petEnhanceExp[pet.id] ?? 0;
+          const petMult = 1 + level * 0.1;
+          const nextCost = getEnhanceCostForLevel(level);
+          const combatAtk = Math.round(pet.attack * petMult);
 
           return (
             <Card
@@ -181,11 +204,16 @@ function PetScreen() {
                 <span className={`text-xs font-bold ${rarityTextColors[pet.rarity]}`}>
                   {rarityLabels[pet.rarity]}
                 </span>
-                {isActive && (
-                  <span className="text-xs bg-dungeon-accent/20 text-dungeon-accent px-2 py-0.5 rounded">
-                    장착 중
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {owned && level > 0 && (
+                    <span className="text-xs font-bold text-amber-400">+{level}</span>
+                  )}
+                  {isActive && (
+                    <span className="text-xs bg-dungeon-accent/20 text-dungeon-accent px-2 py-0.5 rounded">
+                      장착 중
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Pet icon and name */}
@@ -195,11 +223,34 @@ function PetScreen() {
                 <p className="text-xs text-gray-500 mt-1">{pet.description}</p>
               </div>
 
+              {/* Combat ATK */}
+              {owned && (
+                <p className="text-center text-xs text-orange-400 mb-2">
+                  전투 공격력: {combatAtk}
+                </p>
+              )}
+
+              {/* Enhancement progress */}
+              {owned && (
+                <div className="mb-3">
+                  <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1">
+                    <span>강화 경험치</span>
+                    <span>{exp} / {nextCost}</span>
+                  </div>
+                  <div className="w-full bg-dungeon-bg rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-amber-500 transition-all duration-300"
+                      style={{ width: `${Math.min(100, (exp / nextCost) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Bonus stats */}
               <div className="flex flex-wrap justify-center gap-1 mb-4">
                 {pet.bonus.map((b, i) => (
                   <span key={i} className="text-xs bg-dungeon-bg px-2 py-1 rounded text-green-400">
-                    {formatBonus(b.stat, b.value)}
+                    {formatBonus(b.stat, b.value, owned ? petMult : 1)}
                   </span>
                 ))}
               </div>

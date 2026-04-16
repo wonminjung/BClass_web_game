@@ -4,3 +4,4 @@ export * from './monster';
 export * from './item';
 export * from './combat';
 export * from './auth';
+export * from './passiveTree';

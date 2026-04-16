@@ -73,6 +73,11 @@ router.post(
         return;
       }
 
+      if (pet.rarity === 'mythic') {
+        res.status(400).json({ success: false, message: '신화 펫은 가챠로만 획득할 수 있습니다' });
+        return;
+      }
+
       // Defensive init
       if (!saveData.ownedPets) saveData.ownedPets = [];
 

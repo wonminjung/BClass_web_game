@@ -31,10 +31,20 @@ export interface SaveData {
   artifacts: Record<string, number>;  // artifactId → level
   ownedPets: string[];     // owned pet IDs
   activePet: string;       // equipped pet ID
+  petLevels: Record<string, number>;        // petId → enhancement level
+  petEnhanceExp: Record<string, number>;    // petId → current exp toward next level
+  petGachaPity: number;    // pulls since last mythic pet drop
   itemOptions: Record<string, RandomOption[]>;  // itemId -> random options
   gachaPity: number;  // pulls since last mythic drop
+  passiveTree: { allocatedNodes: string[] };
   blessings: { type: string; expiresAt: string }[];
   appearance: { color: string };
+  prestigeBlessingType?: 'warrior' | 'sage' | 'plunderer' | 'guardian';
+  prestigeTrialCleared?: boolean;
+  dualPetUnlocked?: boolean;
+  extraSkillSlot?: boolean;
+  critOverflow?: boolean;
+  equippedSkills?: string[];  // equipped skill IDs (max 5, or 6 with milestone)
   createdAt: string;
   lastPlayedAt: string;
 }

@@ -12,6 +12,8 @@ export interface Skill {
   healMultiplier: number;
   statusEffect: StatusEffect | null;
   animation: SkillAnimation;
+  special?: string;
+  unlockLevel?: number;
 }
 
 export type SkillType = 'active' | 'passive';

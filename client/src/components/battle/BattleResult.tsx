@@ -175,9 +175,9 @@ const BattleResult = React.memo(function BattleResult({
           <p className="text-red-400 text-center font-bold text-lg">
             {isAbyss ? `심연 ${abyssFloor}층에서 쓰러졌습니다...` : '전투에서 패배했습니다...'}
           </p>
-          {isAbyss && abyssNextFloor !== null && abyssNextFloor !== undefined && (
+          {isAbyss && (
             <p className="text-sm text-purple-300 text-center">
-              {abyssNextFloor}층으로 후퇴합니다 (-10층)
+              {abyssNextFloor ?? Math.max(0, (abyssFloor ?? 0) - 10)}층으로 후퇴합니다 (-10층)
             </p>
           )}
           <p className="text-sm text-gray-500 text-center">
@@ -187,7 +187,7 @@ const BattleResult = React.memo(function BattleResult({
             {isAbyss ? (
               <>
                 <Button variant="primary" size="md" onClick={handleNextFloor} className="flex-1">
-                  {abyssNextFloor}층에서 재도전
+                  {abyssNextFloor ?? Math.max(0, (abyssFloor ?? 0) - 10)}층에서 재도전
                 </Button>
                 <Button variant="secondary" size="md" onClick={handleHome} className="flex-1">
                   귀환

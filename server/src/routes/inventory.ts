@@ -183,7 +183,7 @@ router.get('/enhance-info/:itemId', (req: Request, res: Response): void => {
   }
 });
 
-// ── POST /enhance-gold ───────────────────────────────────────
+// ── POST /enhance-gold (now uses gems) ──────────────────────
 router.post(
   '/enhance-gold',
   validate([{ name: 'itemId', type: 'string', minLength: 1 }]),
@@ -199,7 +199,7 @@ router.post(
       }
 
       const { itemId } = req.body;
-      const result = GameService.enhanceWithGold(saveData, itemId);
+      const result = GameService.enhanceWithGem(saveData, itemId);
 
       if (!result.success) {
         res.status(400).json({ success: false, message: result.error });
@@ -210,12 +210,12 @@ router.post(
       res.json({
         success: true,
         enhanced: result.enhanced,
-        goldSpent: result.goldSpent,
+        goldSpent: result.gemSpent,
         successRate: result.successRate,
         saveData,
       });
     } catch (err) {
-      console.error('[inventory/enhance-gold]', err);
+      console.error('[inventory/enhance-gem]', err);
       res.status(500).json({ success: false, message: 'Internal server error' });
     }
   },
