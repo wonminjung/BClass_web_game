@@ -356,6 +356,13 @@ function PachinkoScreen() {
               [cfg.label]: (prev[cfg.label] || 0) + 1,
             }));
           }
+
+          // Immediately send pocket result to server
+          axios.post('/api/pachinko/pocket', { pocket: visualSlot }).then(res => {
+            if (res.data.success && res.data.saveData) {
+              updateSaveData(res.data.saveData);
+            }
+          }).catch(() => {});
         }
       }
 
@@ -692,7 +699,16 @@ function PachinkoScreen() {
       return;
     }
 
-    // Optimistic gold deduction (server will confirm)
+    // Server-side gold deduction (immediate, reliable)
+    axios.post('/api/pachinko/deduct', { count }).then(res => {
+      if (res.data.success && res.data.saveData) {
+        updateSaveData(res.data.saveData);
+      }
+    }).catch(() => {
+      toast.error('골드 차감 실패');
+    });
+
+    // Optimistic client-side update for UI responsiveness
     if (saveData) {
       updateSaveData({ ...saveData, gold: saveData.gold - cost });
     }
@@ -737,19 +753,10 @@ function PachinkoScreen() {
 
     batchesRef.current.push(batch);
 
-    // Set callback for when ALL balls settle - send all batches to server
+    // When all balls settle, just stop playing state (rewards already sent per ball)
     onAllSettledRef.current = () => {
-      const allBatches = batchesRef.current;
-      batchesRef.current = [];
-
-      // Send each batch independently
-      for (const b of allBatches) {
-        const pockets = b.ballIndices.map(idx => {
-          const ball = ballsRef.current[idx];
-          return ball ? ball.resultSlot : 4; // fallback to center
-        });
-        sendResults(b.count as 1 | 10 | 100, b.cost, pockets);
-      }
+      setPlaying(false);
+      playingRef.current = false;
     };
 
     // Safety timeout
