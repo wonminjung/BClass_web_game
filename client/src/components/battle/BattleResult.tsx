@@ -68,7 +68,7 @@ const BattleResult = React.memo(function BattleResult({
       onClose={isVictory ? handleContinue : handleHome}
       title={isVictory ? (isAbyss ? `${abyssFloor}층 클리어!` : '승리!') : '패배...'}
     >
-      {isVictory && !rewards && (
+      {isVictory && !rewards ? (
         <div className="space-y-4">
           <p className="text-yellow-400 text-center font-bold text-lg">시련을 극복했습니다!</p>
           <p className="text-sm text-gray-400 text-center">환생 페이지에서 환생을 진행하세요.</p>
@@ -81,9 +81,7 @@ const BattleResult = React.memo(function BattleResult({
             </Button>
           </div>
         </div>
-      )}
-
-      {isVictory && rewards ? (
+      ) : isVictory && rewards ? (
         <div className="space-y-4">
           {isAbyss ? (
             <p className="text-purple-400 text-center font-bold text-lg">
