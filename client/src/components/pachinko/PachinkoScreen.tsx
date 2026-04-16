@@ -166,7 +166,7 @@ function PachinkoScreen() {
   const [multiSummary, setMultiSummary] = useState<MultiSummary | null>(null);
   const [singlePocket, setSinglePocket] = useState<number | null>(null);
   const [stats, setStats] = useState<PachinkoStats>(loadStats);
-  const [runningTally, setRunningTally] = useState<Record<string, number>>({});
+  const [, setRunningTally] = useState<Record<string, number>>({});
   const [jackpotFlash, setJackpotFlash] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -860,11 +860,10 @@ function PachinkoScreen() {
         </div>
       </div>
 
-      {/* Main content: canvas + side panel */}
-      <div className="flex gap-4 justify-center mb-4">
-        {/* Canvas */}
+      {/* Canvas */}
+      <div className="flex justify-center mb-4">
         <div
-          className="rounded-lg overflow-hidden flex-shrink-0"
+          className="rounded-lg overflow-hidden"
           style={{
             width: CANVAS_W,
             height: CANVAS_H,
@@ -877,27 +876,6 @@ function PachinkoScreen() {
             ref={canvasRef}
             style={{ width: CANVAS_W, height: CANVAS_H }}
           />
-        </div>
-
-        {/* Side panel: running tally */}
-        <div className="w-48 flex-shrink-0">
-          <div className="bg-dungeon-panel rounded-lg border border-gray-700 p-3">
-            <h3 className="text-xs font-bold text-gray-400 mb-2 border-b border-gray-700 pb-2">
-              {playing ? '진행중...' : '현재 결과'}
-            </h3>
-            {Object.keys(runningTally).length === 0 && !playing && singlePocket == null && !multiSummary && (
-              <p className="text-xs text-gray-600 text-center py-4">플레이를 시작하세요</p>
-            )}
-            {Object.entries(runningTally).map(([label, count]) => {
-              const cfg = POCKET_CONFIG.find(s => s.label === label);
-              return (
-                <div key={label} className="flex items-center justify-between text-xs py-1">
-                  <span style={{ color: cfg?.color ?? '#9CA3AF' }}>{label}</span>
-                  <span className="text-gray-300 font-bold">x{count}</span>
-                </div>
-              );
-            })}
-          </div>
         </div>
       </div>
 
