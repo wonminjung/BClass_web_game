@@ -312,16 +312,27 @@ function BattleScreen() {
 
   const handleContinue = useCallback(() => {
     resetBattle();
-    navigate('/dungeon');
-  }, [resetBattle, navigate]);
+    if (isTrialMode) {
+      navigate('/prestige');
+    } else {
+      navigate('/dungeon');
+    }
+  }, [resetBattle, navigate, isTrialMode]);
 
   const handleRetry = useCallback(() => {
-    if (dungeonId) {
-      setSelectedTargetId(null);
-      resetBattle();
+    if (!dungeonId) return;
+    setSelectedTargetId(null);
+    resetBattle();
+    if (isTrialMode) {
+      startPrestigeTrialBattle();
+    } else if (isWeeklyBossMode) {
+      startWeeklyBossBattle();
+    } else if (isAbyssMode) {
+      startAbyssBattle();
+    } else {
       startBattle(dungeonId);
     }
-  }, [dungeonId, resetBattle, startBattle]);
+  }, [dungeonId, isTrialMode, isWeeklyBossMode, isAbyssMode, resetBattle, startBattle, startPrestigeTrialBattle, startWeeklyBossBattle, startAbyssBattle]);
 
   const handleHome = useCallback(() => {
     resetBattle();
