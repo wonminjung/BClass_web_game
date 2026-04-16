@@ -823,7 +823,7 @@ router.post(
           saveData.prestigeTrialCleared = true;
           AuthService.saveProgress(saveCode, saveData);
         }
-        CombatService.cleanupBattle(battleId);
+        CombatService.removeBattle(battleId);
         res.json({ success: true, battleState, saveData: AuthService.getSaveData(saveCode) });
         return;
       }
@@ -843,7 +843,7 @@ router.post(
           saveData.prestigeTrialCleared = true;
           AuthService.saveProgress(saveCode, saveData);
         }
-        CombatService.cleanupBattle(battleId);
+        CombatService.removeBattle(battleId);
         res.json({ success: true, battleState, saveData: AuthService.getSaveData(saveCode) });
         return;
       }
