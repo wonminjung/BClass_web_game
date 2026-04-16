@@ -753,8 +753,29 @@ function PachinkoScreen() {
 
     batchesRef.current.push(batch);
 
-    // When all balls settle, just stop playing state (rewards already sent per ball)
+    // When all balls settle, show final summary
     onAllSettledRef.current = () => {
+      // Build summary from all settled balls
+      const allPockets = ballsRef.current.filter(b => b.settled).map(b => b.resultSlot);
+      const counts: Record<string, number> = {};
+      let totalGold = 0, totalGems = 0, totalItems = 0;
+      for (const p of allPockets) {
+        const cfg = POCKET_CONFIG[p];
+        if (cfg) counts[cfg.label] = (counts[cfg.label] || 0) + 1;
+        // Approximate reward values for display
+        if (p === 0) { totalGems += 500; totalItems += 5; } // jackpot
+        else if (p === 2) { totalGems += 50; } // gems
+        else if (p === 3) { totalItems += 1; } // epic stone
+        else if (p === 4) { totalGold += 30000; } // small gold
+        else if (p === 5) { totalItems += 2; } // rare stone
+        else if (p === 6) { totalGold += 80000; } // med gold
+        else if (p === 8) { totalGold += 250000; } // large gold
+      }
+      if (allPockets.length === 1) {
+        setSinglePocket(allPockets[0]);
+      } else {
+        setMultiSummary({ counts, totalGold, totalGems, totalItems });
+      }
       setPlaying(false);
       playingRef.current = false;
     };
