@@ -8,18 +8,12 @@ const router = Router();
 // ── Cost table ──
 const COST_MAP: Record<number, number> = {
   1: 100_000,
-  10: 900_000,   // 10% discount
-  100: 8_000_000, // 20% discount
+  10: 900_000,
+  100: 8_000_000,
 };
 
 // ── Fixed pocket rewards (index 0-8) ──
-interface PocketReward {
-  id: string;
-  name: string;
-  reward: { gold?: number; gems?: number; itemId?: string; quantity?: number } | null;
-}
-
-const POCKET_REWARDS: PocketReward[] = [
+const POCKET_REWARDS = [
   { id: 'jackpot', name: '잭팟', reward: { gems: 500, itemId: 'enhance_stone_legendary', quantity: 5 } },
   { id: 'miss', name: '꽝', reward: null },
   { id: 'gems', name: '젬', reward: { gems: 50 } },
@@ -46,100 +40,78 @@ function extractSaveCode(req: Request, res: Response): string | null {
   return saveCode;
 }
 
-// ── POST /play ──
-router.post('/play', (req: Request, res: Response): void => {
+// ── POST /deduct — 골드 선차감 (플레이 시작 시) ──
+router.post('/deduct', (req: Request, res: Response): void => {
   try {
     const saveCode = extractSaveCode(req, res);
     if (!saveCode) return;
 
     const saveData = AuthService.getSaveData(saveCode);
-    if (!saveData) {
-      res.status(404).json({ success: false, message: 'Save data not found' });
-      return;
-    }
+    if (!saveData) { res.status(404).json({ success: false, message: 'Save data not found' }); return; }
 
     const count = Number(req.body.count);
-    const pockets: number[] = req.body.pockets;
-
-    // Validate count
     if (![1, 10, 100].includes(count)) {
-      res.status(400).json({ success: false, message: '유효하지 않은 횟수입니다 (1/10/100)' });
+      res.status(400).json({ success: false, message: '유효하지 않은 횟수입니다' });
       return;
     }
 
-    // Validate pockets array
-    if (!Array.isArray(pockets) || pockets.length !== count) {
-      res.status(400).json({ success: false, message: '포켓 결과 배열이 유효하지 않습니다.' });
+    const cost = COST_MAP[count];
+    if ((saveData.gold ?? 0) < cost) {
+      res.status(400).json({ success: false, message: `골드가 부족합니다 (필요: ${cost.toLocaleString()})` });
       return;
     }
 
-    for (const p of pockets) {
-      if (typeof p !== 'number' || p < 0 || p > 8 || !Number.isInteger(p)) {
-        res.status(400).json({ success: false, message: '유효하지 않은 포켓 인덱스입니다 (0-8).' });
-        return;
+    saveData.gold -= cost;
+    AuthService.saveProgress(saveCode, saveData);
+
+    res.json({ success: true, goldSpent: cost, saveData });
+  } catch (err) {
+    console.error('[pachinko/deduct]', err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// ── POST /pocket — 개별 포켓 보상 즉시 지급 ──
+router.post('/pocket', (req: Request, res: Response): void => {
+  try {
+    const saveCode = extractSaveCode(req, res);
+    if (!saveCode) return;
+
+    const saveData = AuthService.getSaveData(saveCode);
+    if (!saveData) { res.status(404).json({ success: false, message: 'Save data not found' }); return; }
+
+    const pocket = Number(req.body.pocket);
+    if (!Number.isInteger(pocket) || pocket < 0 || pocket > 8) {
+      res.status(400).json({ success: false, message: '유효하지 않은 포켓' });
+      return;
+    }
+
+    const entry = POCKET_REWARDS[pocket];
+    let rewardGold = 0, rewardGems = 0;
+    const rewardItems: { name: string; quantity: number }[] = [];
+
+    if (entry.reward) {
+      if (entry.reward.gold) { rewardGold = entry.reward.gold; saveData.gold += rewardGold; }
+      if (entry.reward.gems) { rewardGems = entry.reward.gems; saveData.gems = (saveData.gems ?? 0) + rewardGems; }
+      if (entry.reward.itemId) {
+        const qty = entry.reward.quantity ?? 1;
+        GameService.addItem(saveData, entry.reward.itemId, qty);
+        const itemDef = ITEMS.find(i => i.id === entry.reward!.itemId);
+        rewardItems.push({ name: itemDef?.name ?? entry.reward.itemId, quantity: qty });
       }
     }
-
-    // Calculate cost
-    const totalCost = COST_MAP[count];
-
-    // Check gold
-    if ((saveData.gold ?? 0) < totalCost) {
-      res.status(400).json({ success: false, message: `골드가 부족합니다 (필요: ${totalCost.toLocaleString()})` });
-      return;
-    }
-
-    // Deduct gold
-    saveData.gold -= totalCost;
-
-    // Process pocket results and accumulate rewards
-    const results: { pocket: number; name: string }[] = [];
-    let totalGold = 0;
-    let totalGems = 0;
-    const itemAccumulator: Record<string, number> = {};
-
-    for (const pocketIdx of pockets) {
-      const entry = POCKET_REWARDS[pocketIdx];
-      results.push({ pocket: pocketIdx, name: entry.name });
-
-      if (entry.reward) {
-        if (entry.reward.gold) totalGold += entry.reward.gold;
-        if (entry.reward.gems) totalGems += entry.reward.gems;
-        if (entry.reward.itemId) {
-          itemAccumulator[entry.reward.itemId] = (itemAccumulator[entry.reward.itemId] ?? 0) + (entry.reward.quantity ?? 1);
-        }
-      }
-    }
-
-    // Apply rewards
-    saveData.gold += totalGold;
-    saveData.gems = (saveData.gems ?? 0) + totalGems;
-
-    for (const [itemId, quantity] of Object.entries(itemAccumulator)) {
-      GameService.addItem(saveData, itemId, quantity);
-    }
-
-    // Build items array for response
-    const itemsResponse = Object.entries(itemAccumulator).map(([itemId, quantity]) => {
-      const itemDef = ITEMS.find(i => i.id === itemId);
-      return { name: itemDef?.name ?? itemId, quantity };
-    });
 
     AuthService.saveProgress(saveCode, saveData);
 
     res.json({
       success: true,
-      results,
-      totalRewards: {
-        gold: totalGold,
-        gems: totalGems,
-        items: itemsResponse,
-      },
-      goldSpent: totalCost,
+      pocket,
+      name: entry.name,
+      reward: { gold: rewardGold, gems: rewardGems, items: rewardItems },
       saveData,
     });
   } catch (err) {
-    console.error('[pachinko/play]', err);
+    console.error('[pachinko/pocket]', err);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

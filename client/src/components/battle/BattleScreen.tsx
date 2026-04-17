@@ -88,6 +88,20 @@ const EnemyCard = React.memo(function EnemyCard({
           />
         </div>
       </div>
+      {/* Status effects */}
+      {enemy.isAlive && enemy.statusEffects.length > 0 && (
+        <div className="flex gap-0.5 justify-center mt-0.5">
+          {enemy.statusEffects.map((eff, i) => {
+            const icon = eff.type === 'poison' ? '\u2620' :
+                         eff.type === 'burn' ? '\uD83D\uDD25' :
+                         eff.type === 'bleed' ? '\uD83E\uDE78' :
+                         eff.type === 'stun' ? '\uD83D\uDCAB' :
+                         eff.type === 'defense_down' ? '\uD83D\uDD3D' : null;
+            if (!icon) return null;
+            return <span key={i} className="text-[8px]" title={`${eff.type} ${eff.remainingTurns}t`}>{icon}</span>;
+          })}
+        </div>
+      )}
     </button>
   );
 });
@@ -132,6 +146,11 @@ function BattleScreen() {
     return PETS.find((p) => p.id === saveData.activePet) ?? null;
   }, [saveData?.activePet]);
 
+  const activePet2Data = useMemo(() => {
+    if (!saveData?.activePet2 || !saveData?.dualPetUnlocked) return null;
+    return PETS.find((p) => p.id === saveData.activePet2) ?? null;
+  }, [saveData?.activePet2, saveData?.dualPetUnlocked]);
+
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [flashEnemies, setFlashEnemies] = useState<Set<string>>(new Set());
   const [playerAttacking, setPlayerAttacking] = useState(false);
@@ -139,6 +158,7 @@ function BattleScreen() {
   const [enemyLunging, setEnemyLunging] = useState<string | null>(null);
   const [playerEffect, setPlayerEffect] = useState<EffectType | null>(null);
   const [petAttacking, setPetAttacking] = useState(false);
+  const [pet2Attacking, setPet2Attacking] = useState(false);
   const [skillText, setSkillText] = useState<string | null>(null);
   const [autoBattle, setAutoBattle] = useState(false);
   const [battleSpeed, setBattleSpeed] = useState(1);
@@ -298,30 +318,47 @@ function BattleScreen() {
       // ── 3단계: 펫 공격 애니메이션 ──
       const newLog = useCombatStore.getState().battleLog;
       const newEntries = newLog.slice(prevLogLen);
-      const hasPetAttack = newEntries.some((e) => e.message.startsWith('[펫]'));
-      if (hasPetAttack && activePetData) {
+      const petAttackEntries = newEntries.filter((e) => e.message.startsWith('[펫]'));
+      if (petAttackEntries.length > 0 && activePetData) {
         setPetAttacking(true);
         setTimeout(() => setPetAttacking(false), 400 / battleSpeed);
+      }
+      if (petAttackEntries.length > 1 && activePet2Data) {
+        setTimeout(() => {
+          setPet2Attacking(true);
+          setTimeout(() => setPet2Attacking(false), 400 / battleSpeed);
+        }, 200 / battleSpeed);
       }
 
       // Unlock auto-battle
       animLockRef.current = false;
     },
-    [selectedTargetId, useSkill, useAbyssSkill, useWeeklyBossSkill, isAbyssMode, isWeeklyBossMode, updateSaveData, battleSpeed, activePetData],
+    [selectedTargetId, useSkill, useAbyssSkill, useWeeklyBossSkill, isAbyssMode, isWeeklyBossMode, updateSaveData, battleSpeed, activePetData, activePet2Data],
   );
 
   const handleContinue = useCallback(() => {
     resetBattle();
-    navigate('/dungeon');
-  }, [resetBattle, navigate]);
+    if (isTrialMode) {
+      navigate('/prestige');
+    } else {
+      navigate('/dungeon');
+    }
+  }, [resetBattle, navigate, isTrialMode]);
 
   const handleRetry = useCallback(() => {
-    if (dungeonId) {
-      setSelectedTargetId(null);
-      resetBattle();
+    if (!dungeonId) return;
+    setSelectedTargetId(null);
+    resetBattle();
+    if (isTrialMode) {
+      startPrestigeTrialBattle();
+    } else if (isWeeklyBossMode) {
+      startWeeklyBossBattle();
+    } else if (isAbyssMode) {
+      startAbyssBattle();
+    } else {
       startBattle(dungeonId);
     }
-  }, [dungeonId, resetBattle, startBattle]);
+  }, [dungeonId, isTrialMode, isWeeklyBossMode, isAbyssMode, resetBattle, startBattle, startPrestigeTrialBattle, startWeeklyBossBattle, startAbyssBattle]);
 
   const handleHome = useCallback(() => {
     resetBattle();
@@ -567,6 +604,9 @@ function BattleScreen() {
               height={88}
             />
             {playerEffect && <BattleEffect type={playerEffect} />}
+            {battleState.player.statusEffects.some(e => e.type === 'shield') && (
+              <div className="absolute inset-0 border-2 border-cyan-400/50 rounded-full animate-pulse" style={{ boxShadow: '0 0 10px rgba(6, 182, 212, 0.3)' }} />
+            )}
           </div>
           <span className="text-[11px] font-bold">{battleState.player.name}</span>
           <span className="text-[9px] text-gray-400">Lv.{saveData?.level ?? '?'}</span>
@@ -577,6 +617,14 @@ function BattleScreen() {
                 {PET_EMOJIS[activePetData.id] ?? '\uD83D\uDC3E'}
               </span>
               <span className="text-[8px] text-yellow-400">{activePetData.name}</span>
+            </div>
+          )}
+          {activePet2Data && (
+            <div className={`flex flex-col items-center ${pet2Attacking ? 'animate-lunge-right' : ''}`}>
+              <span className={`text-2xl ${pet2Attacking ? 'animate-bounce' : ''}`}>
+                {PET_EMOJIS[activePet2Data.id] ?? '\uD83D\uDC3E'}
+              </span>
+              <span className="text-[8px] text-cyan-400">{activePet2Data.name}</span>
             </div>
           )}
         </div>
@@ -666,7 +714,16 @@ function BattleScreen() {
               <div className="flex flex-col gap-1 min-w-[50px]">
                 {battleState.player.statusEffects.map((eff, i) => (
                   <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-purple-900/50 text-purple-300 border border-purple-700/40 text-center whitespace-nowrap">
-                    {eff.type === 'attack_up' ? '\u2694 ATK+' : eff.type === 'defense_up' ? '\uD83D\uDEE1 DEF+' : eff.type === 'poison' ? '\u2620 독' : eff.type === 'regen' ? '\u2728 재생' : eff.type === 'shield' ? '\uD83D\uDCA0 보호막' : eff.type === 'burn' ? '\uD83D\uDD25 화상' : eff.type === 'bleed' ? '\uD83E\uDE78 출혈' : eff.type} {eff.remainingTurns}t
+                    {eff.type === 'attack_up' ? '\u2694\uFE0F\u2191' :
+                     eff.type === 'defense_up' ? '\uD83D\uDEE1\uFE0F\u2191' :
+                     eff.type === 'poison' ? '\u2620\uB3C5' :
+                     eff.type === 'regen' ? '\uD83D\uDC9A\uC7AC\uC0DD' :
+                     eff.type === 'shield' ? '\uD83D\uDD35\uBCF4\uD638\uB9C9' :
+                     eff.type === 'burn' ? '\uD83D\uDD25\uD654\uC0C1' :
+                     eff.type === 'bleed' ? '\uD83E\uDE78\uCD9C\uD608' :
+                     eff.type === 'stun' ? '\uD83D\uDCAB\uAE30\uC808' :
+                     eff.type === 'defense_down' ? '\uD83D\uDD3D\uBC29\uAC10' :
+                     eff.type} {eff.remainingTurns}t
                   </span>
                 ))}
               </div>

@@ -158,4 +158,70 @@ router.post(
   },
 );
 
+// ── POST /equip2 ── equip second pet (dual pet milestone) ──
+router.post(
+  '/equip2',
+  validate([{ name: 'petId', type: 'string', minLength: 0 }]),
+  (req: Request, res: Response): void => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        res.status(401).json({ success: false, message: 'Missing authorization' });
+        return;
+      }
+      const token = authHeader.slice(7);
+      const saveCode = AuthService.verifyToken(token);
+      if (!saveCode) {
+        res.status(401).json({ success: false, message: 'Invalid or expired token' });
+        return;
+      }
+
+      const saveData = AuthService.getSaveData(saveCode);
+      if (!saveData) {
+        res.status(404).json({ success: false, message: 'Save data not found' });
+        return;
+      }
+
+      // Must have dual pet milestone unlocked
+      if (!saveData.dualPetUnlocked) {
+        res.status(400).json({ success: false, message: '2마리 동시 출전이 해금되지 않았습니다 (환생 50회 필요)' });
+        return;
+      }
+
+      const { petId } = req.body;
+
+      // Allow unequipping by passing empty string
+      if (petId === '') {
+        saveData.activePet2 = '';
+        AuthService.saveProgress(saveCode, saveData);
+        res.json({ success: true, message: '두 번째 펫을 해제했습니다', saveData });
+        return;
+      }
+
+      // Defensive init
+      if (!saveData.ownedPets) saveData.ownedPets = [];
+
+      if (!saveData.ownedPets.includes(petId)) {
+        res.status(400).json({ success: false, message: '소유하지 않은 펫입니다' });
+        return;
+      }
+
+      // Cannot be same as first pet
+      if (saveData.activePet === petId) {
+        res.status(400).json({ success: false, message: '이미 첫 번째 슬롯에 장착 중인 펫입니다' });
+        return;
+      }
+
+      saveData.activePet2 = petId;
+      AuthService.saveProgress(saveCode, saveData);
+
+      const pet = PETS.find((p) => p.id === petId);
+      res.json({ success: true, message: `${pet?.name ?? petId}을(를) 두 번째 펫으로 장착했습니다!`, saveData });
+    } catch (err) {
+      console.error('[pets/equip2]', err);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  },
+);
+
 export default router;

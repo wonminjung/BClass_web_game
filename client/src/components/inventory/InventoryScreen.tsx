@@ -1215,7 +1215,7 @@ function InventoryScreen() {
                     <div className="flex justify-between"><span className="text-gray-500">공격력</span><span className="text-red-400 font-bold">{stats.atk.toLocaleString()}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">방어력</span><span className="text-blue-400 font-bold">{stats.def.toLocaleString()}</span></div>
                     <div className="flex justify-between"><span className="text-gray-500">속도</span><span className="text-green-400 font-bold">{stats.spd}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">치명타율</span><span className="text-yellow-400 font-bold">{Math.round(stats.crit * 100)}%</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">치명타율</span><span className="text-yellow-400 font-bold">{Math.round(stats.crit * 100)}%{saveData?.critOverflow && stats.crit > 1 && <span className="text-orange-400 text-[10px] ml-1">(더블크리 {Math.round((stats.crit - 1) * 100)}%)</span>}</span></div>
                     <div className="flex justify-between col-span-2"><span className="text-gray-500">치명타 피해</span><span className="text-purple-400 font-bold">x{stats.critDmg.toFixed(2)}</span></div>
                   </div>
                   {(stats.bonusGold > 0 || stats.bonusExp > 0 || stats.bonusDrop > 0 || stats.lifesteal > 0 || stats.reflect > 0 || stats.hpRegen > 0) && (

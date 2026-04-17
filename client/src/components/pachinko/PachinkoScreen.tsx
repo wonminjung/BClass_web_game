@@ -166,7 +166,7 @@ function PachinkoScreen() {
   const [multiSummary, setMultiSummary] = useState<MultiSummary | null>(null);
   const [singlePocket, setSinglePocket] = useState<number | null>(null);
   const [stats, setStats] = useState<PachinkoStats>(loadStats);
-  const [runningTally, setRunningTally] = useState<Record<string, number>>({});
+  const [, setRunningTally] = useState<Record<string, number>>({});
   const [jackpotFlash, setJackpotFlash] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -179,6 +179,7 @@ function PachinkoScreen() {
   const onAllSettledRef = useRef<(() => void) | null>(null);
   const jackpotFlashRef = useRef(0);
   const pendingCountRef = useRef<1 | 10 | 100>(1);
+  const pendingSpawnsRef = useRef(0);
 
   const gold = saveData?.gold ?? 0;
 
@@ -186,8 +187,12 @@ function PachinkoScreen() {
   const physicsStep = useCallback(() => {
     const balls = ballsRef.current;
     const sparks = sparksRef.current;
+    const now = Date.now();
 
-    for (const ball of balls) {
+    // Remove settled balls after 1 second to free memory
+    ballsRef.current = balls.filter(b => !b.settled || (now - b.settleTime) < 1000);
+
+    for (const ball of ballsRef.current) {
       if (!ball.active || ball.settled) continue;
 
       // Gravity
@@ -229,10 +234,10 @@ function PachinkoScreen() {
           ball.vy *= PEG_BOUNCE;
           ball.vx += (Math.random() - 0.5) * 1.0;
 
-          // Spark
+          // Spark (limit when many balls)
           const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-          if (speed > 1) {
-            for (let s = 0; s < 3; s++) {
+          if (speed > 1 && sparks.length < 200) {
+            for (let s = 0; s < (ballsRef.current.length > 50 ? 1 : 3); s++) {
               sparks.push({
                 x: peg.x + nx * PEG_RADIUS,
                 y: peg.y + ny * PEG_RADIUS,
@@ -247,7 +252,9 @@ function PachinkoScreen() {
         }
       }
 
-      // Ball-ball collisions
+      // Ball-ball collisions (skip if too many active balls for performance)
+      const activeBallCount = balls.filter(b => b.active && !b.settled).length;
+      if (activeBallCount <= 50) {
       for (const other of balls) {
         if (other === ball || !other.active || other.settled) continue;
         const dx = ball.x - other.x;
@@ -275,6 +282,7 @@ function PachinkoScreen() {
           }
         }
       }
+      } // end ball-ball collision guard
 
       // Wall collisions
       if (ball.x < ball.radius) {
@@ -356,6 +364,36 @@ function PachinkoScreen() {
               [cfg.label]: (prev[cfg.label] || 0) + 1,
             }));
           }
+
+          // Update bottom results in real-time
+          const pocketLabel = cfg?.label ?? '?';
+          let rGold = 0, rGems = 0, rItems = 0;
+          if (visualSlot === 0) { rGems = 500; rItems = 5; }
+          else if (visualSlot === 2) { rGems = 50; }
+          else if (visualSlot === 3) { rItems = 1; }
+          else if (visualSlot === 4) { rGold = 30000; }
+          else if (visualSlot === 5) { rItems = 2; }
+          else if (visualSlot === 6) { rGold = 80000; }
+          else if (visualSlot === 8) { rGold = 250000; }
+
+          setSinglePocket(visualSlot);
+          setMultiSummary(prev => {
+            const counts = { ...(prev?.counts ?? {}) };
+            counts[pocketLabel] = (counts[pocketLabel] || 0) + 1;
+            return {
+              counts,
+              totalGold: (prev?.totalGold ?? 0) + rGold,
+              totalGems: (prev?.totalGems ?? 0) + rGems,
+              totalItems: (prev?.totalItems ?? 0) + rItems,
+            };
+          });
+
+          // Immediately send pocket result to server
+          axios.post('/api/pachinko/pocket', { pocket: visualSlot }).then(res => {
+            if (res.data.success && res.data.saveData) {
+              updateSaveData(res.data.saveData);
+            }
+          }).catch(() => {});
         }
       }
 
@@ -392,13 +430,13 @@ function PachinkoScreen() {
       }
     }
 
-    // Check if all settled
-    const activeBalls = balls.filter(b => b.active);
-    if (activeBalls.length > 0 && activeBalls.every(b => b.settled)) {
+    // Check if all balls settled (only if no more spawns pending)
+    const allBalls = ballsRef.current;
+    const unsettled = allBalls.filter(b => b.active && !b.settled);
+    if (allBalls.length > 0 && unsettled.length === 0 && pendingSpawnsRef.current <= 0) {
       if (onAllSettledRef.current) {
         const cb = onAllSettledRef.current;
         onAllSettledRef.current = null;
-        // Small delay so user sees the final state
         setTimeout(cb, 500);
       }
     }
@@ -635,11 +673,11 @@ function PachinkoScreen() {
   }, []);
 
   /* ── Send results to server after all balls settle ── */
-  const sendResults = useCallback(async (count: 1 | 10 | 100, cost: number) => {
-    const pocketResults = ballsRef.current.map(b => b.resultSlot);
+  const sendResults = useCallback(async (count: 1 | 10 | 100, cost: number, pocketResults?: number[]) => {
+    const pockets = pocketResults ?? ballsRef.current.map(b => b.resultSlot);
 
     try {
-      const res = await axios.post('/api/pachinko/play', { count, pockets: pocketResults });
+      const res = await axios.post('/api/pachinko/play', { count, pockets });
       if (!res.data.success) {
         toast.error(res.data.message || '플레이에 실패했습니다.');
         setPlaying(false);
@@ -666,11 +704,9 @@ function PachinkoScreen() {
 
       // Show result
       if (count === 1) {
-        const pocket = pocketResults[0];
-        setSinglePocket(pocket);
+        setSinglePocket(pockets[0]);
       } else {
-        const summary = buildMultiSummary(pocketResults);
-        setMultiSummary(summary);
+        setMultiSummary(buildMultiSummary(pockets));
       }
     } catch (err: unknown) {
       const msg = axios.isAxiosError(err) && err.response?.data?.message
@@ -683,7 +719,10 @@ function PachinkoScreen() {
     }
   }, [updateSaveData]);
 
-  /* ── Play handler ── */
+  // Track pending batches for server calls
+  const batchesRef = useRef<{ count: number; cost: number; ballIndices: number[] }[]>([]);
+
+  /* ── Play handler (can be called multiple times) ── */
   const doPlay = useCallback((count: 1 | 10 | 100) => {
     const cost = count === 1 ? COST_1 : count === 10 ? COST_10 : COST_100;
     if (gold < cost) {
@@ -691,40 +730,68 @@ function PachinkoScreen() {
       return;
     }
 
-    // Regenerate peg layout each game
-    PEGS = buildPegs();
+    // Server-side gold deduction (immediate, reliable)
+    axios.post('/api/pachinko/deduct', { count }).then(res => {
+      if (res.data.success && res.data.saveData) {
+        updateSaveData(res.data.saveData);
+      }
+    }).catch(() => {
+      toast.error('골드 차감 실패');
+    });
+
+    // Optimistic client-side update for UI responsiveness
+    if (saveData) {
+      updateSaveData({ ...saveData, gold: saveData.gold - cost });
+    }
+
+    // First click: reset board
+    if (!playingRef.current) {
+      PEGS = buildPegs();
+      setSinglePocket(null);
+      setMultiSummary(null);
+      setRunningTally({});
+      ballsRef.current = [];
+      sparksRef.current = [];
+      pocketFlashRef.current = new Array(SLOT_COUNT).fill(0);
+      pocketPopupRef.current = new Array(SLOT_COUNT).fill(null);
+      jackpotFlashRef.current = 0;
+      setJackpotFlash(0);
+      batchesRef.current = [];
+      pendingSpawnsRef.current = 0;
+    }
 
     setPlaying(true);
     playingRef.current = true;
-    setSinglePocket(null);
-    setMultiSummary(null);
-    setRunningTally({});
-    ballsRef.current = [];
-    sparksRef.current = [];
-    pocketFlashRef.current = new Array(SLOT_COUNT).fill(0);
-    pocketPopupRef.current = new Array(SLOT_COUNT).fill(null);
-    jackpotFlashRef.current = 0;
-    setJackpotFlash(0);
     pendingCountRef.current = count;
+
+    // Track this batch's ball indices
+    const startIdx = ballsRef.current.length;
+    const batch = { count, cost, ballIndices: [] as number[] };
 
     // Spawn balls with staggered timing
     const spawnInterval = count === 1 ? 0 : count === 10 ? 300 : 80;
+    pendingSpawnsRef.current += count;
 
     for (let i = 0; i < count; i++) {
+      const idx = startIdx + i;
+      batch.ballIndices.push(idx);
       if (i === 0) {
         spawnBall();
+        pendingSpawnsRef.current--;
       } else {
         setTimeout(() => {
-          if (playingRef.current) {
-            spawnBall();
-          }
+          spawnBall();
+          pendingSpawnsRef.current--;
         }, i * spawnInterval);
       }
     }
 
-    // Set callback for when all balls settle - THEN send to server
+    batchesRef.current.push(batch);
+
+    // When all balls settle, just stop playing
     onAllSettledRef.current = () => {
-      sendResults(count, cost);
+      setPlaying(false);
+      playingRef.current = false;
     };
 
     // Safety timeout
@@ -805,11 +872,10 @@ function PachinkoScreen() {
         </div>
       </div>
 
-      {/* Main content: canvas + side panel */}
-      <div className="flex gap-4 justify-center mb-4">
-        {/* Canvas */}
+      {/* Canvas */}
+      <div className="flex justify-center mb-4">
         <div
-          className="rounded-lg overflow-hidden flex-shrink-0"
+          className="rounded-lg overflow-hidden"
           style={{
             width: CANVAS_W,
             height: CANVAS_H,
@@ -823,34 +889,49 @@ function PachinkoScreen() {
             style={{ width: CANVAS_W, height: CANVAS_H }}
           />
         </div>
-
-        {/* Side panel: running tally */}
-        <div className="w-48 flex-shrink-0">
-          <div className="bg-dungeon-panel rounded-lg border border-gray-700 p-3">
-            <h3 className="text-xs font-bold text-gray-400 mb-2 border-b border-gray-700 pb-2">
-              {playing ? '진행중...' : '현재 결과'}
-            </h3>
-            {Object.keys(runningTally).length === 0 && !playing && singlePocket == null && !multiSummary && (
-              <p className="text-xs text-gray-600 text-center py-4">플레이를 시작하세요</p>
-            )}
-            {Object.entries(runningTally).map(([label, count]) => {
-              const cfg = POCKET_CONFIG.find(s => s.label === label);
-              return (
-                <div key={label} className="flex items-center justify-between text-xs py-1">
-                  <span style={{ color: cfg?.color ?? '#9CA3AF' }}>{label}</span>
-                  <span className="text-gray-300 font-bold">x{count}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </div>
 
-      {/* Play Buttons */}
+      {/* Shake + Play Buttons */}
+      {playing && (
+        <div className="flex justify-center mb-2">
+          <Button
+            onClick={() => {
+              const SHAKE_COST = 10_000;
+              if (gold < SHAKE_COST) { toast.error('골드가 부족합니다.'); return; }
+              if (saveData) updateSaveData({ ...saveData, gold: saveData.gold - SHAKE_COST });
+              // Shake all active balls
+              for (const ball of ballsRef.current) {
+                if (ball.active && !ball.settled) {
+                  ball.vx += (Math.random() - 0.5) * 8;
+                  ball.vy += (Math.random() - 0.5) * 4 - 2;
+                }
+              }
+              // Jitter pegs slightly
+              for (const peg of PEGS) {
+                peg.x += (Math.random() - 0.5) * 4;
+                peg.y += (Math.random() - 0.5) * 2;
+              }
+              // Screen shake effect
+              const canvas = canvasRef.current;
+              if (canvas) {
+                canvas.style.transform = 'translateX(5px) rotate(0.5deg)';
+                setTimeout(() => { canvas.style.transform = 'translateX(-5px) rotate(-0.5deg)'; }, 50);
+                setTimeout(() => { canvas.style.transform = 'translateX(3px)'; }, 100);
+                setTimeout(() => { canvas.style.transform = ''; }, 150);
+              }
+            }}
+            disabled={gold < 10_000}
+            className="px-6 py-2 bg-orange-700 hover:bg-orange-600 border border-orange-500/50 transition-all disabled:opacity-40"
+          >
+            <span className="text-sm font-bold text-orange-200">흔들기 (10,000G)</span>
+          </Button>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-2 mb-4 max-w-xl mx-auto">
         <Button
           onClick={() => doPlay(1)}
-          disabled={playing || gold < COST_1}
+          disabled={gold < COST_1}
           className="py-3 bg-dungeon-panel border border-yellow-500/30 hover:border-yellow-500/60 hover:bg-yellow-500/10 transition-all disabled:opacity-40"
         >
           <div className="text-center">
@@ -860,7 +941,7 @@ function PachinkoScreen() {
         </Button>
         <Button
           onClick={() => doPlay(10)}
-          disabled={playing || gold < COST_10}
+          disabled={gold < COST_10}
           className="py-3 bg-dungeon-panel border border-yellow-500/40 hover:border-yellow-500/70 hover:bg-yellow-500/15 transition-all disabled:opacity-40 relative"
         >
           <div className="text-center">
@@ -873,7 +954,7 @@ function PachinkoScreen() {
         </Button>
         <Button
           onClick={() => doPlay(100)}
-          disabled={playing || gold < COST_100}
+          disabled={gold < COST_100}
           className="py-3 bg-dungeon-panel border border-yellow-500/50 hover:border-yellow-500/80 hover:bg-yellow-500/20 transition-all disabled:opacity-40 relative"
         >
           <div className="text-center">
@@ -887,7 +968,7 @@ function PachinkoScreen() {
       </div>
 
       {/* Single Result Display */}
-      {singlePocket != null && !playing && (
+      {singlePocket != null && (
         <div
           className="mb-4 p-4 text-center rounded-lg border-2 bg-dungeon-panel max-w-xl mx-auto"
           style={{ borderColor: singlePocketColor + '80' }}
@@ -905,7 +986,7 @@ function PachinkoScreen() {
       )}
 
       {/* Multi Result Summary */}
-      {multiSummary && !playing && (
+      {multiSummary && (
         <div className="mb-4 p-4 rounded-lg border border-gray-700 bg-dungeon-panel max-w-xl mx-auto">
           <h3 className="text-sm font-bold text-yellow-400 mb-3">결과 요약</h3>
           <div className="flex flex-wrap gap-2 mb-3">
