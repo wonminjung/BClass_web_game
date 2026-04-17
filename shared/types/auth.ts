@@ -42,6 +42,7 @@ export interface SaveData {
   prestigeBlessingType?: 'warrior' | 'sage' | 'plunderer' | 'guardian';
   prestigeTrialCleared?: boolean;
   dualPetUnlocked?: boolean;
+  activePet2?: string;  // second pet slot (requires dualPetUnlocked)
   extraSkillSlot?: boolean;
   critOverflow?: boolean;
   equippedSkills?: string[];  // equipped skill IDs (max 5, or 6 with milestone)

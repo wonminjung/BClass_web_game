@@ -186,6 +186,23 @@ export function calculateTotalStats(saveData: SaveData): TotalStats {
     }
   }
 
+  // ── 9b. Second Pet (dual pet milestone) ──
+  if (saveData.activePet2) {
+    const pet2 = PETS.find((p) => p.id === saveData.activePet2);
+    if (pet2) {
+      const petLevel2 = saveData.petLevels?.[saveData.activePet2] ?? 0;
+      let petMult2 = 1 + petLevel2 * 0.1;
+      if (saveData.prestigeBlessingType === 'guardian') petMult2 *= 2;
+      for (const b of pet2.bonus) {
+        if (b.stat === 'atkPercent') atk = Math.round(atk * (1 + b.value * petMult2 / 100));
+        if (b.stat === 'defPercent') def = Math.round(def * (1 + b.value * petMult2 / 100));
+        if (b.stat === 'hpPercent') hp = Math.round(hp * (1 + b.value * petMult2 / 100));
+        if (b.stat === 'mpPercent') mp = Math.round(mp * (1 + b.value * petMult2 / 100));
+        if (b.stat === 'critRateFlat') crit += b.value * petMult2;
+      }
+    }
+  }
+
   // ── 10. Artifacts (sum first, apply once — matches server) ──
   const artBonuses: Record<string, number> = {};
   for (const art of ARTIFACTS) {

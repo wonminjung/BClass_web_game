@@ -42,7 +42,7 @@ function StatValue({ label, base, equip }: { label: string; base: number; equip:
   );
 }
 
-function StatPercent({ label, base, equip, color }: { label: string; base: number; equip: number; color: string }) {
+function StatPercent({ label, base, equip, color, doubleCritPercent }: { label: string; base: number; equip: number; color: string; doubleCritPercent?: number }) {
   const total = base + equip;
   return (
     <div className="text-center">
@@ -51,6 +51,9 @@ function StatPercent({ label, base, equip, color }: { label: string; base: numbe
         {Math.round(total * 100)}%
         {equip > 0 && <span className="text-xs text-green-400 ml-0.5">(+{Math.round(equip * 100)}%)</span>}
       </p>
+      {doubleCritPercent !== undefined && doubleCritPercent > 0 && (
+        <p className="text-[10px] text-orange-400 font-bold">(더블크리 {Math.round(doubleCritPercent)}%)</p>
+      )}
     </div>
   );
 }
@@ -436,7 +439,7 @@ function HomeScreen() {
           <StatValue label="공격력" base={baseStats.attack} equip={(totalStats?.atk ?? baseStats.attack) - baseStats.attack} />
           <StatValue label="방어력" base={baseStats.defense} equip={(totalStats?.def ?? baseStats.defense) - baseStats.defense} />
           <StatValue label="속도" base={baseStats.speed} equip={equipStats.speed} />
-          <StatPercent label="치명타율" base={baseStats.critRate} equip={(totalStats?.crit ?? baseStats.critRate) - baseStats.critRate} color="text-yellow-400" />
+          <StatPercent label="치명타율" base={baseStats.critRate} equip={(totalStats?.crit ?? baseStats.critRate) - baseStats.critRate} color="text-yellow-400" doubleCritPercent={saveData?.critOverflow && (totalStats?.crit ?? 0) > 1 ? ((totalStats?.crit ?? 0) - 1) * 100 : undefined} />
           <StatPercent label="치명타 피해" base={baseStats.critDamage} equip={(totalStats?.critDmg ?? baseStats.critDamage) - baseStats.critDamage} color="text-purple-400" />
         </div>
 

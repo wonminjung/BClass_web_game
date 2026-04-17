@@ -132,6 +132,11 @@ function BattleScreen() {
     return PETS.find((p) => p.id === saveData.activePet) ?? null;
   }, [saveData?.activePet]);
 
+  const activePet2Data = useMemo(() => {
+    if (!saveData?.activePet2 || !saveData?.dualPetUnlocked) return null;
+    return PETS.find((p) => p.id === saveData.activePet2) ?? null;
+  }, [saveData?.activePet2, saveData?.dualPetUnlocked]);
+
   const [selectedTargetId, setSelectedTargetId] = useState<string | null>(null);
   const [flashEnemies, setFlashEnemies] = useState<Set<string>>(new Set());
   const [playerAttacking, setPlayerAttacking] = useState(false);
@@ -139,6 +144,7 @@ function BattleScreen() {
   const [enemyLunging, setEnemyLunging] = useState<string | null>(null);
   const [playerEffect, setPlayerEffect] = useState<EffectType | null>(null);
   const [petAttacking, setPetAttacking] = useState(false);
+  const [pet2Attacking, setPet2Attacking] = useState(false);
   const [skillText, setSkillText] = useState<string | null>(null);
   const [autoBattle, setAutoBattle] = useState(false);
   const [battleSpeed, setBattleSpeed] = useState(1);
@@ -298,16 +304,22 @@ function BattleScreen() {
       // ── 3단계: 펫 공격 애니메이션 ──
       const newLog = useCombatStore.getState().battleLog;
       const newEntries = newLog.slice(prevLogLen);
-      const hasPetAttack = newEntries.some((e) => e.message.startsWith('[펫]'));
-      if (hasPetAttack && activePetData) {
+      const petAttackEntries = newEntries.filter((e) => e.message.startsWith('[펫]'));
+      if (petAttackEntries.length > 0 && activePetData) {
         setPetAttacking(true);
         setTimeout(() => setPetAttacking(false), 400 / battleSpeed);
+      }
+      if (petAttackEntries.length > 1 && activePet2Data) {
+        setTimeout(() => {
+          setPet2Attacking(true);
+          setTimeout(() => setPet2Attacking(false), 400 / battleSpeed);
+        }, 200 / battleSpeed);
       }
 
       // Unlock auto-battle
       animLockRef.current = false;
     },
-    [selectedTargetId, useSkill, useAbyssSkill, useWeeklyBossSkill, isAbyssMode, isWeeklyBossMode, updateSaveData, battleSpeed, activePetData],
+    [selectedTargetId, useSkill, useAbyssSkill, useWeeklyBossSkill, isAbyssMode, isWeeklyBossMode, updateSaveData, battleSpeed, activePetData, activePet2Data],
   );
 
   const handleContinue = useCallback(() => {
@@ -588,6 +600,14 @@ function BattleScreen() {
                 {PET_EMOJIS[activePetData.id] ?? '\uD83D\uDC3E'}
               </span>
               <span className="text-[8px] text-yellow-400">{activePetData.name}</span>
+            </div>
+          )}
+          {activePet2Data && (
+            <div className={`flex flex-col items-center ${pet2Attacking ? 'animate-lunge-right' : ''}`}>
+              <span className={`text-2xl ${pet2Attacking ? 'animate-bounce' : ''}`}>
+                {PET_EMOJIS[activePet2Data.id] ?? '\uD83D\uDC3E'}
+              </span>
+              <span className="text-[8px] text-cyan-400">{activePet2Data.name}</span>
             </div>
           )}
         </div>

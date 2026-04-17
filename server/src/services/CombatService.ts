@@ -44,10 +44,12 @@ const battleTalentMap = new Map<string, TalentBonuses>();
 const battleTitleMap = new Map<string, string>(); // battleId → equipped title ID
 const battleRandomOptionMap = new Map<string, { goldPercent: number; expPercent: number; lifesteal: number; reflect: number; hpRegen: number }>();
 const battlePetMap = new Map<string, { name: string; attack: number; level: number }>();
+const battlePet2Map = new Map<string, { name: string; attack: number; level: number }>();
 const battleEquippedMap = new Map<string, string[]>();
 const battleKeystoneMap = new Map<string, { id: string; ratio: number }[]>(); // keystone specials with ratio
 const battleUndyingUsed = new Map<string, boolean>(); // track undying proc per battle
 const battleEquippedSkillsMap = new Map<string, string[]>(); // equipped skill IDs from saveData
+const battleCritOverflowMap = new Map<string, boolean>(); // crit overflow (prestige 200 milestone)
 const battleProcState = new Map<string, {
   cooldowns: Record<string, number>;
   activeBuffs: { type: string; value: number; remainingTurns: number }[];
@@ -256,6 +258,17 @@ export function initBattle(
       });
     }
   }
+  // Second pet combat info
+  if (saveData.activePet2 && saveData.dualPetUnlocked) {
+    const pet2 = PETS.find((p) => p.id === saveData.activePet2);
+    if (pet2) {
+      battlePet2Map.set(battleState.id, {
+        name: pet2.name,
+        attack: pet2.attack,
+        level: saveData.petLevels?.[saveData.activePet2] ?? 0,
+      });
+    }
+  }
 
   // Initialize proc state + keystone effects
   battleEquippedMap.set(battleState.id, equippedIds);
@@ -263,6 +276,7 @@ export function initBattle(
   battleKeystoneMap.set(battleState.id, totalStats.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
   battleUndyingUsed.set(battleState.id, false);
   battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
+  battleCritOverflowMap.set(battleState.id, saveData.critOverflow ?? false);
 
   return { battleState, skillStates, waveIndex, totalWaves: dungeon.waves.length };
 }
@@ -520,8 +534,20 @@ export function executePlayerAction(
   function performSingleHit(
     hitTarget: BattleFighter,
     forceCrit: boolean | null, // null = roll, true = guaranteed crit, false = no crit
-  ): { hitDamage: number; hitIsCrit: boolean } {
-    const hitIsCrit = forceCrit !== null ? forceCrit : Math.random() < (baseCritRate + procCritBoost);
+  ): { hitDamage: number; hitIsCrit: boolean; hitIsDoubleCrit: boolean } {
+    let hitIsCrit: boolean;
+    let hitIsDoubleCrit = false;
+    if (forceCrit !== null) {
+      hitIsCrit = forceCrit;
+    } else {
+      const hitTotalCritRate = baseCritRate + procCritBoost;
+      if (critOverflow && hitTotalCritRate > 1.0) {
+        hitIsCrit = true;
+        hitIsDoubleCrit = Math.random() < (hitTotalCritRate - 1.0);
+      } else {
+        hitIsCrit = Math.random() < hitTotalCritRate;
+      }
+    }
 
     const keystones = battleKeystoneMap.get(battleState.id) ?? [];
     const getKR = (id: string) => keystones.find(k => k.id === id)?.ratio ?? 0;
@@ -544,6 +570,24 @@ export function executePlayerAction(
 
     let hitDamage = calculateDamage(getEffectiveAttack(player), effectiveDef, effectiveMultiplier * manaBonus, hitIsCrit, baseCritDmg);
 
+    // Keystone: perfectStrike — 완벽한 일격: 크리 시 최대 데미지 보정
+    const perfectRatio = getKR('perfectStrike');
+    if (hitIsCrit && perfectRatio > 0) {
+      const maxRaw = getEffectiveAttack(player) * effectiveMultiplier * manaBonus;
+      const maxDamage = Math.round((maxRaw * maxRaw) / (maxRaw + effectiveDef));
+      const afterCritMax = Math.round(maxDamage * baseCritDmg);
+      hitDamage = Math.round(hitDamage + (afterCritMax - hitDamage) * perfectRatio);
+      if (perfectRatio >= 0.8) {
+        battleState.log.push({ turn: battleState.turn, message: `[완벽한 일격] 최대 크리티컬 데미지!`, type: 'buff' });
+      }
+    }
+
+    // Crit overflow: double crit for multi-hit
+    if (hitIsDoubleCrit) {
+      hitDamage = Math.round(hitDamage * baseCritDmg);
+      battleState.log.push({ turn: battleState.turn, message: `[더블 크리티컬!] 크리 데미지가 한번 더 적용됩니다!`, type: 'damage' });
+    }
+
     const execRatio = getKR('executioner');
     if (execRatio > 0 && hitTarget.currentHp / hitTarget.maxHp <= 0.3) {
       hitDamage = Math.round(hitDamage * (1 + execRatio));
@@ -561,7 +605,7 @@ export function executePlayerAction(
       }
     }
 
-    return { hitDamage, hitIsCrit };
+    return { hitDamage, hitIsCrit, hitIsDoubleCrit };
   }
 
   // Determine if this is a multi-hit special
@@ -574,8 +618,21 @@ export function executePlayerAction(
     multiHitForceCrit = true;
   }
 
+  const critOverflow = battleCritOverflowMap.get(battleState.id) ?? false;
+
   for (const target of targets) {
-    const isCrit = Math.random() < (baseCritRate + procCritBoost);
+    const totalCritRate = baseCritRate + procCritBoost;
+    let isCrit: boolean;
+    let isDoubleCrit = false;
+
+    if (critOverflow && totalCritRate > 1.0) {
+      isCrit = true; // 100% crit guaranteed
+      const overflowRate = totalCritRate - 1.0;
+      isDoubleCrit = Math.random() < overflowRate;
+    } else {
+      isCrit = Math.random() < totalCritRate;
+    }
+
     let damage = 0;
     let heal = 0;
 
@@ -682,6 +739,18 @@ export function executePlayerAction(
 
       damage = calculateDamage(getEffectiveAttack(player), effectiveDef, effectiveMultiplier * manaBonus, isCrit, baseCritDmg);
 
+      // Keystone: perfectStrike — 완벽한 일격: 크리 시 최대 데미지 보정
+      const perfectRatio = getKR('perfectStrike');
+      if (isCrit && perfectRatio > 0) {
+        const maxRaw = getEffectiveAttack(player) * effectiveMultiplier * manaBonus;
+        const maxDamage = Math.round((maxRaw * maxRaw) / (maxRaw + effectiveDef));
+        const afterCritMax = Math.round(maxDamage * baseCritDmg);
+        damage = Math.round(damage + (afterCritMax - damage) * perfectRatio);
+        if (perfectRatio >= 0.8) {
+          battleState.log.push({ turn: battleState.turn, message: `[완벽한 일격] 최대 크리티컬 데미지!`, type: 'buff' });
+        }
+      }
+
       // Apply poison_burst multiplier
       if (poisonBurstMultiplier > 1) {
         damage = Math.round(damage * poisonBurstMultiplier);
@@ -723,6 +792,12 @@ export function executePlayerAction(
         }
         // Consume extra_damage buffs (they are single-use)
         procState.activeBuffs = procState.activeBuffs.filter(b => b.type !== 'extra_damage');
+      }
+
+      // Crit overflow: double crit
+      if (isDoubleCrit) {
+        damage = Math.round(damage * baseCritDmg);
+        battleState.log.push({ turn: battleState.turn, message: `[더블 크리티컬!] 크리 데미지가 한번 더 적용됩니다!`, type: 'damage' });
       }
 
       target.currentHp = Math.max(0, target.currentHp - damage);
@@ -883,6 +958,35 @@ export function executePlayerAction(
 
       if (battleState.stats) {
         battleState.stats.totalDamageDealt += petDmg;
+      }
+    }
+  }
+
+  // Second pet auto-attack
+  const petInfo2 = battlePet2Map.get(battleState.id);
+  if (petInfo2) {
+    const aliveEnemy2 = battleState.enemies.find(e => e.isAlive);
+    if (aliveEnemy2) {
+      const petDmg2 = Math.max(1, Math.round(petInfo2.attack * (1 + petInfo2.level * 0.1)));
+      aliveEnemy2.currentHp = Math.max(0, aliveEnemy2.currentHp - petDmg2);
+      aliveEnemy2.isAlive = aliveEnemy2.currentHp > 0;
+
+      battleState.log.push({
+        turn: battleState.turn,
+        message: `[펫] ${petInfo2.name}의 공격 → ${aliveEnemy2.name}에게 ${petDmg2} 데미지`,
+        type: 'damage',
+      });
+
+      if (!aliveEnemy2.isAlive) {
+        battleState.log.push({
+          turn: battleState.turn,
+          message: `${aliveEnemy2.name} 처치!`,
+          type: 'defeat',
+        });
+      }
+
+      if (battleState.stats) {
+        battleState.stats.totalDamageDealt += petDmg2;
       }
     }
   }
@@ -1456,6 +1560,7 @@ export function removeBattle(id: string): void {
   battleTitleMap.delete(id);
   battleRandomOptionMap.delete(id);
   battlePetMap.delete(id);
+  battlePet2Map.delete(id);
   battleEquippedMap.delete(id);
   battleProcState.delete(id);
   battleKeystoneMap.delete(id);
@@ -1464,6 +1569,7 @@ export function removeBattle(id: string): void {
   abyssFloorMap.delete(id);
   weeklyBossMap.delete(id);
   battleEquippedSkillsMap.delete(id);
+  battleCritOverflowMap.delete(id);
 }
 
 // ────────────────────────────────────────────────────────────
@@ -1617,6 +1723,17 @@ export function initAbyssBattle(
       });
     }
   }
+  // Second pet combat info (abyss)
+  if (saveData.activePet2 && saveData.dualPetUnlocked) {
+    const pet2 = PETS.find((p) => p.id === saveData.activePet2);
+    if (pet2) {
+      battlePet2Map.set(battleState.id, {
+        name: pet2.name,
+        attack: pet2.attack,
+        level: saveData.petLevels?.[saveData.activePet2] ?? 0,
+      });
+    }
+  }
 
   // Initialize proc state + keystone effects (abyss)
   battleEquippedMap.set(battleState.id, equippedIds);
@@ -1624,6 +1741,7 @@ export function initAbyssBattle(
   battleKeystoneMap.set(battleState.id, totalStatsAbyss.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
   battleUndyingUsed.set(battleState.id, false);
   battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
+  battleCritOverflowMap.set(battleState.id, saveData.critOverflow ?? false);
 
   return { battleState, skillStates, floor };
 }
@@ -1890,6 +2008,17 @@ export function initWeeklyBossBattle(
       });
     }
   }
+  // Second pet combat info (weekly boss)
+  if (saveData.activePet2 && saveData.dualPetUnlocked) {
+    const pet2 = PETS.find((p) => p.id === saveData.activePet2);
+    if (pet2) {
+      battlePet2Map.set(battleState.id, {
+        name: pet2.name,
+        attack: pet2.attack,
+        level: saveData.petLevels?.[saveData.activePet2] ?? 0,
+      });
+    }
+  }
 
   // Initialize proc state + keystone effects (weekly boss)
   battleEquippedMap.set(battleState.id, equippedIds);
@@ -1897,6 +2026,7 @@ export function initWeeklyBossBattle(
   battleKeystoneMap.set(battleState.id, totalStatsWb.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
   battleUndyingUsed.set(battleState.id, false);
   battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
+  battleCritOverflowMap.set(battleState.id, saveData.critOverflow ?? false);
 
   return { battleState, skillStates };
 }
@@ -2032,11 +2162,18 @@ export function initPrestigeTrialBattle(
     if (!pet) return undefined as any;
     return { name: pet.name, attack: pet.attack, level: saveData.petLevels?.[saveData.activePet] ?? 0 };
   })());
+  battlePet2Map.set(battleState.id, (() => {
+    if (!saveData.activePet2 || !saveData.dualPetUnlocked) return undefined as any;
+    const pet2 = PETS.find(p => p.id === saveData.activePet2);
+    if (!pet2) return undefined as any;
+    return { name: pet2.name, attack: pet2.attack, level: saveData.petLevels?.[saveData.activePet2] ?? 0 };
+  })());
   battleEquippedMap.set(battleState.id, equippedIds);
   battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
   battleKeystoneMap.set(battleState.id, totalStats.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
   battleUndyingUsed.set(battleState.id, false);
   battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
+  battleCritOverflowMap.set(battleState.id, saveData.critOverflow ?? false);
 
   return { battleState, skillStates };
 }

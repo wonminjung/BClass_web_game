@@ -87,6 +87,8 @@ function PetScreen() {
 
   const ownedPets = saveData?.ownedPets ?? [];
   const activePet = saveData?.activePet ?? '';
+  const activePet2 = saveData?.activePet2 ?? '';
+  const dualPetUnlocked = saveData?.dualPetUnlocked ?? false;
   const petLevels = saveData?.petLevels ?? {};
   const petEnhanceExp = saveData?.petEnhanceExp ?? {};
 
@@ -135,6 +137,25 @@ function PetScreen() {
     }
   }, [loading, activePet, updateSaveData]);
 
+  const handleEquip2 = useCallback(async (petId: string) => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const newPetId = activePet2 === petId ? '' : petId;
+      const res = await axios.post('/api/pets/equip2', { petId: newPetId });
+      if (res.data.success && res.data.saveData) {
+        updateSaveData(res.data.saveData);
+      }
+    } catch (err: unknown) {
+      const message = axios.isAxiosError(err) && err.response?.data?.message
+        ? err.response.data.message
+        : '두 번째 펫 장착에 실패했습니다.';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [loading, activePet2, updateSaveData]);
+
   if (!saveData) return null;
 
   return (
@@ -181,11 +202,47 @@ function PetScreen() {
         );
       })()}
 
+      {/* Active pet 2 banner (dual pet) */}
+      {dualPetUnlocked && activePet2 && (() => {
+        const pet2 = PETS.find((p) => p.id === activePet2);
+        if (!pet2) return null;
+        const level2 = petLevels[pet2.id] ?? 0;
+        const petMult2 = 1 + level2 * 0.1;
+        const combatAtk2 = Math.round(pet2.attack * petMult2);
+        return (
+          <Card className="mb-6 text-center border border-cyan-700/50">
+            <p className="text-xs text-cyan-500 mb-1">두 번째 펫</p>
+            <p className="text-3xl mb-1">{petEmojis[pet2.id] ?? '?'}</p>
+            <p className={`text-lg font-bold ${rarityTextColors[pet2.rarity]}`}>
+              {pet2.name} {level2 > 0 && <span className="text-sm text-amber-400">+{level2}</span>}
+            </p>
+            <p className="text-xs text-orange-400 mt-1">전투 공격력: {combatAtk2}</p>
+            <div className="flex flex-wrap justify-center gap-2 mt-2">
+              {pet2.bonus.map((b, i) => (
+                <span key={i} className="text-xs bg-dungeon-panel px-2 py-1 rounded text-green-400">
+                  {formatBonus(b.stat, b.value, petMult2)}
+                </span>
+              ))}
+            </div>
+          </Card>
+        );
+      })()}
+
+      {/* Empty second pet slot */}
+      {dualPetUnlocked && !activePet2 && (
+        <Card className="mb-6 text-center border border-dashed border-cyan-700/30">
+          <p className="text-xs text-cyan-500/60 mb-1">두 번째 펫 슬롯</p>
+          <p className="text-3xl mb-1 opacity-30">&#128062;</p>
+          <p className="text-xs text-gray-500">아래에서 두 번째 펫을 장착하세요</p>
+        </Card>
+      )}
+
       {/* Pet grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {PETS.map((pet) => {
           const owned = ownedPets.includes(pet.id);
           const isActive = activePet === pet.id;
+          const isActive2 = activePet2 === pet.id;
           const level = petLevels[pet.id] ?? 0;
           const exp = petEnhanceExp[pet.id] ?? 0;
           const petMult = 1 + level * 0.1;
@@ -196,7 +253,7 @@ function PetScreen() {
             <Card
               key={pet.id}
               className={`relative border-2 ${rarityBorders[pet.rarity]} ${rarityBgGlow[pet.rarity]} ${
-                isActive ? 'ring-2 ring-dungeon-accent' : ''
+                isActive ? 'ring-2 ring-dungeon-accent' : isActive2 ? 'ring-2 ring-cyan-500' : ''
               } ${!owned ? 'opacity-70' : ''}`}
             >
               {/* Rarity badge */}
@@ -211,6 +268,11 @@ function PetScreen() {
                   {isActive && (
                     <span className="text-xs bg-dungeon-accent/20 text-dungeon-accent px-2 py-0.5 rounded">
                       장착 중
+                    </span>
+                  )}
+                  {isActive2 && (
+                    <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
+                      2슬롯
                     </span>
                   )}
                 </div>
@@ -256,16 +318,29 @@ function PetScreen() {
               </div>
 
               {/* Action button */}
-              <div className="text-center">
+              <div className="text-center flex justify-center gap-2">
                 {owned ? (
-                  <Button
-                    size="sm"
-                    variant={isActive ? 'secondary' : 'primary'}
-                    onClick={() => handleEquip(pet.id)}
-                    disabled={loading}
-                  >
-                    {isActive ? '해제' : '장착'}
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      variant={isActive ? 'secondary' : 'primary'}
+                      onClick={() => handleEquip(pet.id)}
+                      disabled={loading || isActive2}
+                    >
+                      {isActive ? '해제' : '장착'}
+                    </Button>
+                    {dualPetUnlocked && (
+                      <Button
+                        size="sm"
+                        variant={isActive2 ? 'secondary' : 'primary'}
+                        onClick={() => handleEquip2(pet.id)}
+                        disabled={loading || isActive}
+                        className={isActive2 ? '!border-cyan-500 !text-cyan-400' : '!border-cyan-700 !text-cyan-500'}
+                      >
+                        {isActive2 ? '2슬롯 해제' : '2슬롯'}
+                      </Button>
+                    )}
+                  </>
                 ) : (
                   <Button
                     size="sm"
