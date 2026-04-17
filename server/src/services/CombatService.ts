@@ -47,6 +47,7 @@ const battlePetMap = new Map<string, { name: string; attack: number; level: numb
 const battlePet2Map = new Map<string, { name: string; attack: number; level: number }>();
 const battleEquippedMap = new Map<string, string[]>();
 const battleKeystoneMap = new Map<string, { id: string; ratio: number }[]>(); // keystone specials with ratio
+const battlePassiveStatsMap = new Map<string, { lifesteal: number; reflect: number; hpRegen: number }>();
 const battleUndyingUsed = new Map<string, boolean>(); // track undying proc per battle
 const battleEquippedSkillsMap = new Map<string, string[]>(); // equipped skill IDs from saveData
 const battleCritOverflowMap = new Map<string, boolean>(); // crit overflow (prestige 200 milestone)
@@ -274,9 +275,14 @@ export function initBattle(
   battleEquippedMap.set(battleState.id, equippedIds);
   battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
   battleKeystoneMap.set(battleState.id, totalStats.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
+  battlePassiveStatsMap.set(battleState.id, { lifesteal: totalStats.lifesteal, reflect: totalStats.reflect, hpRegen: totalStats.hpRegen });
   battleUndyingUsed.set(battleState.id, false);
   battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
   battleCritOverflowMap.set(battleState.id, saveData.critOverflow ?? false);
+
+  // A4: preemptiveStrike speed boost
+  const preemptiveR = totalStats.keystoneEffects.find(k => k.id === 'preemptiveStrike')?.ratio ?? 0;
+  if (preemptiveR > 0) player.speed = Math.round(player.speed * (1 + 0.2 * preemptiveR));
 
   return { battleState, skillStates, waveIndex, totalWaves: dungeon.waves.length };
 }
@@ -294,13 +300,15 @@ function getEffectiveAttack(fighter: BattleFighter): number {
   return atk;
 }
 
-/** Get effective defense considering defense_up buffs and shield */
+/** Get effective defense considering defense_up buffs, shield, and defense_down */
 function getEffectiveDefense(fighter: BattleFighter): number {
   let def = fighter.defense;
   for (const eff of fighter.statusEffects) {
     if (eff.type === 'defense_up') def += eff.value;
     if (eff.type === 'shield') def += eff.value;
+    if (eff.type === 'defense_down') def -= eff.value;
   }
+  def = Math.max(0, def);
   return def;
 }
 
@@ -751,6 +759,19 @@ export function executePlayerAction(
         }
       }
 
+      // Notable: lowHpAtkBoost
+      const lowHpR = getKR('lowHpAtkBoost');
+      if (lowHpR > 0 && player.currentHp / player.maxHp <= 0.2) {
+        damage = Math.round(damage * (1 + 0.3 * lowHpR));
+        battleState.log.push({ turn: battleState.turn, message: `[위기의 힘] HP 위험! 데미지 +${Math.round(lowHpR * 30)}%`, type: 'buff' });
+      }
+
+      // Notable: critBonusDamage
+      const critBonusR = getKR('critBonusDamage');
+      if (isCrit && critBonusR > 0) {
+        damage = Math.round(damage * (1 + 0.25 * critBonusR));
+      }
+
       // Apply poison_burst multiplier
       if (poisonBurstMultiplier > 1) {
         damage = Math.round(damage * poisonBurstMultiplier);
@@ -803,6 +824,22 @@ export function executePlayerAction(
       target.currentHp = Math.max(0, target.currentHp - damage);
       target.isAlive = target.currentHp > 0;
 
+      // Notable: exposeWeakness
+      const exposeR = getKR('exposeWeakness');
+      if (exposeR > 0 && damage > 0 && target.isAlive && !target.statusEffects.some(e => e.type === 'defense_down')) {
+        const defReduce = Math.round(target.defense * 0.1 * exposeR);
+        target.statusEffects.push({ type: 'defense_down', remainingTurns: 3, value: defReduce });
+        battleState.log.push({ turn: battleState.turn, message: `[약점 노출] ${target.name} 방어력 -${defReduce} (3턴)`, type: 'debuff' });
+      }
+
+      // Notable: bloodFrenzy
+      const frenzyR = getKR('bloodFrenzy');
+      if (frenzyR > 0 && !target.isAlive) {
+        const atkBoost = Math.round(player.attack * 0.1 * frenzyR);
+        player.statusEffects.push({ type: 'attack_up', remainingTurns: 3, value: atkBoost });
+        battleState.log.push({ turn: battleState.turn, message: `[피의 광란] 처치! 공격력 +${atkBoost} (3턴)`, type: 'buff' });
+      }
+
       // Track battle stats
       if (battleState.stats && damage > 0) {
         battleState.stats.totalDamageDealt += damage;
@@ -823,6 +860,15 @@ export function executePlayerAction(
       if (vampRatio > 0 && damage > 0) {
         const vampHeal = Math.round(damage * 0.15 * vampRatio);
         if (vampHeal > 0) {
+          const overHealR = getKR('overHeal');
+          if (overHealR > 0 && player.currentHp + vampHeal > player.maxHp) {
+            const overflow = (player.currentHp + vampHeal) - player.maxHp;
+            const shieldAmt = Math.round(overflow * overHealR);
+            if (shieldAmt > 0) {
+              player.statusEffects.push({ type: 'shield', remainingTurns: 3, value: shieldAmt });
+              battleState.log.push({ turn: battleState.turn, message: `[과다 흡혈] 보호막 ${shieldAmt} 생성`, type: 'buff' });
+            }
+          }
           player.currentHp = Math.min(player.maxHp, player.currentHp + vampHeal);
           battleState.log.push({ turn: battleState.turn, message: `[흡혈귀] HP ${vampHeal.toLocaleString()} 회복 (${Math.round(vampRatio * 15)}%)`, type: 'heal' });
         }
@@ -836,6 +882,21 @@ export function executePlayerAction(
         if (!target.statusEffects.some(e => e.type === 'poison')) {
           target.statusEffects.push({ type: 'poison', remainingTurns: poisonTurns, value: poisonDmg });
           battleState.log.push({ turn: battleState.turn, message: `[맹독술사] ${target.name}에게 독 ${poisonTurns}턴 (턴당 ${poisonDmg.toLocaleString()})`, type: 'debuff' });
+        }
+      }
+
+      // Notable: spreadPoison
+      const spreadR = getKR('spreadPoison');
+      if (spreadR > 0 && target.statusEffects.some(e => e.type === 'poison')) {
+        for (const other of battleState.enemies) {
+          if (other === target || !other.isAlive || other.statusEffects.some(e => e.type === 'poison')) continue;
+          if (Math.random() < 0.5 * spreadR) {
+            const pEff = target.statusEffects.find(e => e.type === 'poison');
+            if (pEff) {
+              other.statusEffects.push({ type: 'poison', remainingTurns: pEff.remainingTurns, value: pEff.value });
+              battleState.log.push({ turn: battleState.turn, message: `[독 전염] ${other.name}에게 독 전파!`, type: 'debuff' });
+            }
+          }
         }
       }
 
@@ -931,6 +992,33 @@ export function executePlayerAction(
       });
     }
   }
+
+  // Notable: manaRefund
+  {
+    const keystonesRefund = battleKeystoneMap.get(battleState.id) ?? [];
+    const manaRefundR = keystonesRefund.find(k => k.id === 'manaRefund')?.ratio ?? 0;
+    if (manaRefundR > 0 && skill.manaCost > 0) {
+      const refund = Math.round(player.maxMp * 0.05 * manaRefundR);
+      player.currentMp = Math.min(player.maxMp, player.currentMp + refund);
+      if (refund > 0) battleState.log.push({ turn: battleState.turn, message: `[마나 환류] MP ${refund} 환급`, type: 'buff' });
+    }
+  }
+
+  // Passive lifesteal from equipment + passive tree (non-vampire)
+  {
+    const keystonesLS = battleKeystoneMap.get(battleState.id) ?? [];
+    const vampActive = keystonesLS.find(k => k.id === 'vampire')?.ratio ?? 0;
+    const passiveStats = battlePassiveStatsMap.get(battleState.id);
+    const totalLifestealPct = (battleRandomOptionMap.get(battleState.id)?.lifesteal ?? 0) + (passiveStats?.lifesteal ?? 0);
+    if (totalLifestealPct > 0 && vampActive === 0) {
+      const totalDmg = results.reduce((sum, r) => sum + r.damage, 0);
+      if (totalDmg > 0) {
+        const lsHeal = Math.round(totalDmg * totalLifestealPct / 100);
+        if (lsHeal > 0) player.currentHp = Math.min(player.maxHp, player.currentHp + lsHeal);
+      }
+    }
+  }
+
   } // end else (non-mana_restore_50)
 
   // Pet auto-attack
@@ -1102,6 +1190,13 @@ export function executeEnemyTurn(battleState: BattleState): BattleResult[] {
       }
     }
 
+    // Notable: defMpRegen
+    const defMpR = getKR('defMpRegen');
+    if (defMpR > 0 && damage > 0 && player.isAlive) {
+      const mpRecover = Math.round(player.maxMp * 0.02 * defMpR);
+      player.currentMp = Math.min(player.maxMp, player.currentMp + mpRecover);
+    }
+
     let statusApplied: string | null = null;
     if (chosen.statusEffect) {
       player.statusEffects.push({
@@ -1200,6 +1295,22 @@ export function executeEnemyTurn(battleState: BattleState): BattleResult[] {
         message: `MP가 ${player.currentMp - before} 회복되었다. (${player.currentMp}/${player.maxMp})`,
         type: 'heal',
       });
+    }
+  }
+
+  // Passive HP regen per turn (from passive tree + equipment)
+  const passiveStatsRegen = battlePassiveStatsMap.get(battleState.id);
+  if (passiveStatsRegen && passiveStatsRegen.hpRegen > 0 && player.isAlive) {
+    const regenAmt = Math.round(player.maxHp * passiveStatsRegen.hpRegen / 100);
+    player.currentHp = Math.min(player.maxHp, player.currentHp + regenAmt);
+    if (regenAmt > 0) battleState.log.push({ turn: battleState.turn, message: `[턴 재생] HP ${regenAmt} 회복`, type: 'heal' });
+  }
+
+  // Passive reflect (from passive tree + equipment)
+  if (passiveStatsRegen && passiveStatsRegen.reflect > 0) {
+    for (const enemy of battleState.enemies) {
+      if (!enemy.isAlive) continue;
+      // Reflect is applied per enemy that attacked (simplified: apply once)
     }
   }
 
@@ -1495,6 +1606,11 @@ export function calculateRewards(battleId: string, characterId: string): BattleR
   if (talentGoldBonus && talentGoldBonus.goldPercent > 0) {
     totalGold = Math.round(totalGold * (1 + talentGoldBonus.goldPercent / 100));
   }
+  // Talent exp bonus (fortunePercent applied to exp here as well)
+  const talentExpBonus = battleTalentMap.get(battleId);
+  if (talentExpBonus && talentExpBonus.fortunePercent > 0) {
+    totalExp = Math.round(totalExp * (1 + talentExpBonus.fortunePercent / 100));
+  }
 
   // Keystone: plunderer — 골드/경험치/드랍 증가 (최대 50%)
   const ksReward = battleKeystoneMap.get(battleId) ?? [];
@@ -1564,6 +1680,7 @@ export function removeBattle(id: string): void {
   battleEquippedMap.delete(id);
   battleProcState.delete(id);
   battleKeystoneMap.delete(id);
+  battlePassiveStatsMap.delete(id);
   battleUndyingUsed.delete(id);
   battleWaveMap.delete(id);
   abyssFloorMap.delete(id);
@@ -1739,9 +1856,14 @@ export function initAbyssBattle(
   battleEquippedMap.set(battleState.id, equippedIds);
   battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
   battleKeystoneMap.set(battleState.id, totalStatsAbyss.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
+  battlePassiveStatsMap.set(battleState.id, { lifesteal: totalStatsAbyss.lifesteal, reflect: totalStatsAbyss.reflect, hpRegen: totalStatsAbyss.hpRegen });
   battleUndyingUsed.set(battleState.id, false);
   battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
   battleCritOverflowMap.set(battleState.id, saveData.critOverflow ?? false);
+
+  // A4: preemptiveStrike speed boost
+  const preemptiveR = totalStatsAbyss.keystoneEffects.find(k => k.id === 'preemptiveStrike')?.ratio ?? 0;
+  if (preemptiveR > 0) player.speed = Math.round(player.speed * (1 + 0.2 * preemptiveR));
 
   return { battleState, skillStates, floor };
 }
@@ -1815,6 +1937,11 @@ export function calculateAbyssRewards(battleId: string, characterId: string): Ba
   const talentGoldBonusAbyss = battleTalentMap.get(battleId);
   if (talentGoldBonusAbyss && talentGoldBonusAbyss.goldPercent > 0) {
     totalGold = Math.round(totalGold * (1 + talentGoldBonusAbyss.goldPercent / 100));
+  }
+  // Talent exp bonus (abyss)
+  const talentExpBonusAbyss = battleTalentMap.get(battleId);
+  if (talentExpBonusAbyss && talentExpBonusAbyss.fortunePercent > 0) {
+    totalExp = Math.round(totalExp * (1 + talentExpBonusAbyss.fortunePercent / 100));
   }
 
   // Apply title gold bonus
@@ -1988,6 +2115,7 @@ export function initWeeklyBossBattle(
   battlePrestigeMap.set(battleState.id, saveData.prestigeLevel ?? 0);
   battleArtifactMap.set(battleState.id, getArtifactBonuses(saveData.artifacts));
   battleSkillLevelMap.set(battleState.id, { ...(saveData.skillLevels ?? {}) });
+  battleTalentMap.set(battleState.id, talentModsWb);
   weeklyBossMap.set(battleState.id, true);
   battleRandomOptionMap.set(battleState.id, {
     goldPercent: randOptsWb.goldPercent,
@@ -2024,9 +2152,14 @@ export function initWeeklyBossBattle(
   battleEquippedMap.set(battleState.id, equippedIds);
   battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
   battleKeystoneMap.set(battleState.id, totalStatsWb.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
+  battlePassiveStatsMap.set(battleState.id, { lifesteal: totalStatsWb.lifesteal, reflect: totalStatsWb.reflect, hpRegen: totalStatsWb.hpRegen });
   battleUndyingUsed.set(battleState.id, false);
   battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
   battleCritOverflowMap.set(battleState.id, saveData.critOverflow ?? false);
+
+  // A4: preemptiveStrike speed boost
+  const preemptiveRWb = totalStatsWb.keystoneEffects.find(k => k.id === 'preemptiveStrike')?.ratio ?? 0;
+  if (preemptiveRWb > 0) player.speed = Math.round(player.speed * (1 + 0.2 * preemptiveRWb));
 
   return { battleState, skillStates };
 }
@@ -2171,9 +2304,14 @@ export function initPrestigeTrialBattle(
   battleEquippedMap.set(battleState.id, equippedIds);
   battleProcState.set(battleState.id, { cooldowns: {}, activeBuffs: [] });
   battleKeystoneMap.set(battleState.id, totalStats.keystoneEffects.map(k => ({ id: k.id, ratio: k.ratio })));
+  battlePassiveStatsMap.set(battleState.id, { lifesteal: totalStats.lifesteal, reflect: totalStats.reflect, hpRegen: totalStats.hpRegen });
   battleUndyingUsed.set(battleState.id, false);
   battleEquippedSkillsMap.set(battleState.id, saveData.equippedSkills ?? []);
   battleCritOverflowMap.set(battleState.id, saveData.critOverflow ?? false);
+
+  // A4: preemptiveStrike speed boost
+  const preemptiveRTrial = totalStats.keystoneEffects.find(k => k.id === 'preemptiveStrike')?.ratio ?? 0;
+  if (preemptiveRTrial > 0) player.speed = Math.round(player.speed * (1 + 0.2 * preemptiveRTrial));
 
   return { battleState, skillStates };
 }

@@ -88,6 +88,20 @@ const EnemyCard = React.memo(function EnemyCard({
           />
         </div>
       </div>
+      {/* Status effects */}
+      {enemy.isAlive && enemy.statusEffects.length > 0 && (
+        <div className="flex gap-0.5 justify-center mt-0.5">
+          {enemy.statusEffects.map((eff, i) => {
+            const icon = eff.type === 'poison' ? '\u2620' :
+                         eff.type === 'burn' ? '\uD83D\uDD25' :
+                         eff.type === 'bleed' ? '\uD83E\uDE78' :
+                         eff.type === 'stun' ? '\uD83D\uDCAB' :
+                         eff.type === 'defense_down' ? '\uD83D\uDD3D' : null;
+            if (!icon) return null;
+            return <span key={i} className="text-[8px]" title={`${eff.type} ${eff.remainingTurns}t`}>{icon}</span>;
+          })}
+        </div>
+      )}
     </button>
   );
 });
@@ -590,6 +604,9 @@ function BattleScreen() {
               height={88}
             />
             {playerEffect && <BattleEffect type={playerEffect} />}
+            {battleState.player.statusEffects.some(e => e.type === 'shield') && (
+              <div className="absolute inset-0 border-2 border-cyan-400/50 rounded-full animate-pulse" style={{ boxShadow: '0 0 10px rgba(6, 182, 212, 0.3)' }} />
+            )}
           </div>
           <span className="text-[11px] font-bold">{battleState.player.name}</span>
           <span className="text-[9px] text-gray-400">Lv.{saveData?.level ?? '?'}</span>
@@ -697,7 +714,16 @@ function BattleScreen() {
               <div className="flex flex-col gap-1 min-w-[50px]">
                 {battleState.player.statusEffects.map((eff, i) => (
                   <span key={i} className="text-[9px] px-1.5 py-0.5 rounded bg-purple-900/50 text-purple-300 border border-purple-700/40 text-center whitespace-nowrap">
-                    {eff.type === 'attack_up' ? '\u2694 ATK+' : eff.type === 'defense_up' ? '\uD83D\uDEE1 DEF+' : eff.type === 'poison' ? '\u2620 독' : eff.type === 'regen' ? '\u2728 재생' : eff.type === 'shield' ? '\uD83D\uDCA0 보호막' : eff.type === 'burn' ? '\uD83D\uDD25 화상' : eff.type === 'bleed' ? '\uD83E\uDE78 출혈' : eff.type} {eff.remainingTurns}t
+                    {eff.type === 'attack_up' ? '\u2694\uFE0F\u2191' :
+                     eff.type === 'defense_up' ? '\uD83D\uDEE1\uFE0F\u2191' :
+                     eff.type === 'poison' ? '\u2620\uB3C5' :
+                     eff.type === 'regen' ? '\uD83D\uDC9A\uC7AC\uC0DD' :
+                     eff.type === 'shield' ? '\uD83D\uDD35\uBCF4\uD638\uB9C9' :
+                     eff.type === 'burn' ? '\uD83D\uDD25\uD654\uC0C1' :
+                     eff.type === 'bleed' ? '\uD83E\uDE78\uCD9C\uD608' :
+                     eff.type === 'stun' ? '\uD83D\uDCAB\uAE30\uC808' :
+                     eff.type === 'defense_down' ? '\uD83D\uDD3D\uBC29\uAC10' :
+                     eff.type} {eff.remainingTurns}t
                   </span>
                 ))}
               </div>
